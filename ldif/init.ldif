@@ -1,0 +1,19 @@
+dn: ou=usuarios,dc=arreglaya,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: usuarios
+
+dn: ou=clientes,ou=usuarios,dc=arreglaya,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: clientes
+
+dn: ou=prestadores,ou=usuarios,dc=arreglaya,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: prestadores
+
+dn: ou=administradores,ou=usuarios,dc=arreglaya,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: administradores
