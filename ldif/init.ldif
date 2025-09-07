@@ -1,19 +1,62 @@
-dn: ou=usuarios,dc=arreglaya,dc=com
+# OU para usuarios
+dn: ou=users,dc=arreglaya,dc=com
 objectClass: top
 objectClass: organizationalUnit
-ou: usuarios
+ou: users
 
-dn: ou=clientes,ou=usuarios,dc=arreglaya,dc=com
-objectClass: top
-objectClass: organizationalUnit
-ou: clientes
+# Usuarios
+dn: uid=admin,ou=users,dc=arreglaya,dc=com
+objectClass: inetOrgPerson
+cn: Admin
+sn: Admin
+uid: admin
+userPassword: {SSHA}adminhash
 
-dn: ou=prestadores,ou=usuarios,dc=arreglaya,dc=com
-objectClass: top
-objectClass: organizationalUnit
-ou: prestadores
+dn: uid=provider1,ou=users,dc=arreglaya,dc=com
+objectClass: inetOrgPerson
+cn: Provider1
+sn: Uno
+uid: provider1
+userPassword: {SSHA}providerhash
 
-dn: ou=administradores,ou=usuarios,dc=arreglaya,dc=com
+dn: uid=client1,ou=users,dc=arreglaya,dc=com
+objectClass: inetOrgPerson
+cn: Client1
+sn: Uno
+uid: client1
+userPassword: {SSHA}clienthash
+
+dn: uid=client2,ou=users,dc=arreglaya,dc=com
+objectClass: inetOrgPerson
+cn: Client2
+sn: Dos
+uid: client2
+userPassword: {SSHA}client2hash
+
+# OU para grupos
+dn: ou=groups,dc=arreglaya,dc=com
 objectClass: top
 objectClass: organizationalUnit
-ou: administradores
+ou: groups
+
+# Grupo de administradores
+dn: cn=admins,ou=groups,dc=arreglaya,dc=com
+objectClass: top
+objectClass: groupOfNames
+cn: admins
+member: uid=admin,ou=users,dc=arreglaya,dc=com
+
+# Grupo de proveedores
+dn: cn=providers,ou=groups,dc=arreglaya,dc=com
+objectClass: top
+objectClass: groupOfNames
+cn: providers
+member: uid=provider1,ou=users,dc=arreglaya,dc=com
+
+# Grupo de clientes
+dn: cn=clients,ou=groups,dc=arreglaya,dc=com
+objectClass: top
+objectClass: groupOfNames
+cn: clients
+member: uid=client1,ou=users,dc=arreglaya,dc=com
+member: uid=client2,ou=users,dc=arreglaya,dc=com

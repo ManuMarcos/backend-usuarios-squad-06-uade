@@ -1,4 +1,35 @@
 services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-users_db}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    hostname: postgres
+
+  ldap:
+    image: osixia/openldap:1.5.0
+    restart: unless-stopped
+    ports:
+      - "389:389"
+      - "636:636"
+    environment:
+      - LDAP_ORGANISATION=${LDAP_ORGANISATION:-ArreglaYa}
+      - LDAP_DOMAIN=${LDAP_DOMAIN:-arreglaya.com}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD:-arreglayaadmin}
+      - LDAP_PASSWORD_HASH={SHA}
+    command: "--loglevel info --copy-service"
+    volumes:
+      - ldap:/var/lib/ldap
+      - slapd:/etc/ldap/slapd.d
+      - ./ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom
+    hostname: ldap
+
   ldap-account-manager:
     image: ghcr.io/ldapaccountmanager/lam:8.4
     restart: unless-stopped
@@ -7,28 +38,16 @@ services:
     volumes:
       - lamconfig:/var/lib/ldap-account-manager/config
     environment:
-      - LAM_PASSWORD=${LAM_PASSWORD}
-      - LDAP_SERVER=${LDAP_SERVER}
-      - LDAP_DOMAIN=${LDAP_DOMAIN}
-      - LDAP_BASE_DN=${LDAP_BASE_DN}
-      - LDAP_USER=cn=admin, ${LDAP_BASE_DN}
+      - LAM_PASSWORD=${LAM_PASSWORD:-lamadmin}
+      - LDAP_SERVER=ldap://ldap
+      - LDAP_DOMAIN=${LDAP_DOMAIN:-arreglaya.com}
+      - LDAP_USER=cn=admin,dc=arreglaya,dc=com
+    depends_on:
+      - ldap
     hostname: ldap-account-manager
-  ldap:
-    image: osixia/openldap:1.5.0
-    restart: unless-stopped
-    environment:
-      - LDAP_ORGANISATION=${LDAP_ORGANISATION}
-      - LDAP_DOMAIN=${LDAP_DOMAIN}
-      - LDAP_BASE_DN=${LDAP_BASE_DN}
-      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
-    command: "--loglevel info --copy-service"
-    volumes:
-      - ldap:/var/lib/ldap
-      - slapd:/etc/ldap/slapd.d
-      - ./ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom
-    hostname: ldap
 
 volumes:
+  postgres_data:
   lamconfig:
   ldap:
   slapd:
