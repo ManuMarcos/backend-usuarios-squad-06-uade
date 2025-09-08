@@ -57,7 +57,7 @@ jobs:
 
     #5. Build de la imagen Docker
     - name: Build Docker image
-      run: docker build -t arreglaya/backapp:latest .
+      run: docker build -t manumarcos/arreglaya-backend:latest .
 
     #6. Push a DockerHub
     - name: Push image
