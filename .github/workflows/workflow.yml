@@ -61,4 +61,4 @@ jobs:
 
     #6. Push a DockerHub
     - name: Push image
-      run: docker push arreglaya/backapp:latest
+      run: docker push manumarcos/arreglaya-backend:latest
