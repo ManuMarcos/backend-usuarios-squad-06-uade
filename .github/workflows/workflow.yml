@@ -20,6 +20,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: users_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+
     steps:
     #1. Checkout del repo
     - name: Checkout code
@@ -32,6 +42,7 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
+
 
     #3. Build y test con maven
     - name: Build with Maven
