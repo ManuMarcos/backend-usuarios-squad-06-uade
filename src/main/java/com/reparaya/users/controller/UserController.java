@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -69,40 +68,6 @@ public class UserController {
     @PatchMapping("/{userId}/reset-password")
     public ResponseEntity<String> resetPassword(@PathVariable Long userId, @RequestBody ResetPasswordRequest request) {
         return ResponseEntity.ok(userService.resetPassword(userId, request.getNewPassword()));
-    }
-
-    @GetMapping("/profile")
-    public ResponseEntity<?> getUserProfile(@RequestHeader("Authorization") String authHeader) {
-        try {
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Token de autorización requerido");
-            }
-            
-            String token = authHeader.substring(7);
-            String email = userService.extractEmailFromToken(token);
-            
-            if (userService.validateTokenAndUser(token, email)) {
-                Optional<User> userOpt = userService.getUserByEmail(email);
-                if (userOpt.isPresent()) {
-                    User user = userOpt.get();
-                    return ResponseEntity.ok(Map.of(
-                        "email", user.getEmail(),
-                        "firstName", user.getFirstName(),
-                        "lastName", user.getLastName(),
-                        "role", user.getRole().toString(),
-                        "active", user.getActive()
-                    ));
-                }
-            }
-            
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body("Token inválido");
-                
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error interno del servidor");
-        }
     }
 
 }
