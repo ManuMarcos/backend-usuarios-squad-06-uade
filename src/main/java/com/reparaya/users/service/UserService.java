@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,7 +19,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Transactional
 public class UserService {
-    
+
+    public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
+    public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
     private final UserRepository userRepository;
     private final LdapUserService ldapUserService;
     private final JwtUtil jwtUtil;
@@ -114,6 +117,7 @@ public class UserService {
         return new LoginResponse(
             token,
             UserInfoLoginResponse.builder()
+                    .id(user.getUserId())
                     .email(user.getEmail())
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())
@@ -135,5 +139,22 @@ public class UserService {
 
     public String extractRoleFromToken(String token) {
         return jwtUtil.extractRole(token);
+    }
+
+    @Transactional
+    public String resetPassword(Long userId, String newPassword) {
+        Optional<User> optUser = getUserById(userId);
+
+        if (optUser.isEmpty()) {
+            throw new RuntimeException("El usuario con id: " + userId + " no existe.");
+        }
+
+        if (ldapUserService.resetUserPassword(optUser.get(), newPassword)) {
+            optUser.get().setUpdatedAt(LocalDateTime.now());
+            userRepository.save(optUser.get());
+            return SUCCESS_PWD_RESET;
+        } else {
+            return ERROR_PWD_RESET;
+        }
     }
 }

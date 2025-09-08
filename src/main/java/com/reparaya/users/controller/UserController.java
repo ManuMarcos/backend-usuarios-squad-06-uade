@@ -66,6 +66,11 @@ public class UserController {
         }
     }
 
+    @PatchMapping("/{userId}/reset-password")
+    public ResponseEntity<String> resetPassword(@PathVariable Long userId, @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(userService.resetPassword(userId, request.getNewPassword()));
+    }
+
     @GetMapping("/profile")
     public ResponseEntity<?> getUserProfile(@RequestHeader("Authorization") String authHeader) {
         try {

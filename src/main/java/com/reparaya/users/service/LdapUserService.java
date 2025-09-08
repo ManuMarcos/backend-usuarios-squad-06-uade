@@ -9,10 +9,7 @@ import org.springframework.ldap.support.LdapNameBuilder;
 import org.springframework.stereotype.Service;
 
 import javax.naming.NamingException;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.BasicAttribute;
-import javax.naming.directory.BasicAttributes;
-import javax.naming.directory.DirContext;
+import javax.naming.directory.*;
 import javax.naming.ldap.LdapName;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -101,5 +98,36 @@ public class LdapUserService {
             return false;
         }
     }
+
+    public boolean resetUserPassword(User user, String newPassword) {
+        try {
+            LdapName userDn = LdapNameBuilder.newInstance()
+                    .add("ou", "users")
+                    .add("uid", user.getEmail())
+                    .build();
+    
+            if (!userExistsInLdap(user.getEmail())) {
+                log.warn("No se puede cambiar contraseña: usuario no existe en LDAP: {}", user.getEmail());
+                return false;
+            }
+    
+            ModificationItem[] mods = new ModificationItem[]{
+                new ModificationItem(
+                    DirContext.REPLACE_ATTRIBUTE,
+                    new BasicAttribute("userPassword", newPassword)
+                )
+            };
+    
+            ldapTemplate.modifyAttributes(userDn, mods);
+            log.info("Contraseña actualizada en LDAP para usuario: {}", user.getEmail());
+    
+            return ldapTemplate.authenticate("ou=users", "(uid=" + user.getEmail() + ")", newPassword);
+    
+        } catch (Exception e) {
+            log.error("Error al actualizar la contraseña en LDAP para {}: {}", user.getEmail(), e.getMessage(), e);
+            return false;
+        }
+    }
+    
 }
 
