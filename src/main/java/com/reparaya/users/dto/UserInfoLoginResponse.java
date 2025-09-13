@@ -15,4 +15,5 @@ public class UserInfoLoginResponse {
     private String phoneNumber;
     private String address;
     private boolean isActive;
+    private String dni;
 }
