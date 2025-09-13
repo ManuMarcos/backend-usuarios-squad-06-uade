@@ -40,7 +40,11 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private UserRole role;
+    //Mapeo a tabla roles
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "role_id", nullable = false,
+            foreignKey = @ForeignKey(name = "fk_users_role"))
+    private Role role;
 
     @Column(nullable = false)
     private Boolean active;
