@@ -1,21 +1,14 @@
 package com.reparaya.users.service;
 
 import com.reparaya.users.entity.User;
-import com.reparaya.users.entity.UserRole;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.support.LdapNameBuilder;
 import org.springframework.stereotype.Service;
 
-import javax.naming.NamingException;
 import javax.naming.directory.*;
 import javax.naming.ldap.LdapName;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import org.springframework.ldap.core.DirContextAdapter;
 
 @Slf4j
 @Service

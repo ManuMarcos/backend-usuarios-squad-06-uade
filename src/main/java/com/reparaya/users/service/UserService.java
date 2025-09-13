@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.reparaya.users.entity.Role;
+import com.reparaya.users.repository.RoleRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +31,8 @@ public class UserService {
     public static final String SUCCESS_USER_UPDATE = "Usuario actualizado con éxito";
     public static final String SUCCESS_LOGIN = "Login exitoso";
     public static final String SUCCESS_REGISTER = "Usuario registrado exitosamente.";
+
+    private final RoleRepository roleRepository;
 
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
@@ -54,16 +58,21 @@ public class UserService {
             throw new IllegalArgumentException("El email ya existe en LDAP: " + request.getEmail());
         }
 
+        String normalized = normalizeRoleName(request.getRole());
+        Role role = roleRepository.findByName(normalized)
+                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + normalized));
+
         User newUser = User.builder()
             .email(request.getEmail())
             .firstName(request.getFirstName())
             .lastName(request.getLastName())
             .phoneNumber(request.getPhoneNumber())
             .address(request.getAddress())
+            .role(role)
             .dni(request.getDni())
-            .role(request.getRole())
             .active(true)
             .build();
+
 
         User savedUser = userRepository.save(newUser);
         log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
@@ -91,12 +100,20 @@ public class UserService {
         return savedUser;
     }
 
+    private String normalizeRoleName(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("Debe enviar role");
+        }
+        return raw.trim().toUpperCase();
+    }
+
+
     public RegisterResponse registerUser(RegisterRequest request) {
         User savedUser = createUser(request);
         return new RegisterResponse(
                 SUCCESS_REGISTER,
             savedUser.getEmail(),
-            savedUser.getRole().toString()
+            savedUser.getRole().getName()
         );
     }
 
@@ -117,7 +134,7 @@ public class UserService {
 
         User user = optUser.get();
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().toString());
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName());
         
         return new LoginResponse(
             token,
