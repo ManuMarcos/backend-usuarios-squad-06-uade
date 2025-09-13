@@ -1,6 +1,6 @@
 package com.reparaya.users.dto;
 
-import com.reparaya.users.entity.UserRole;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
@@ -23,4 +23,5 @@ public class RegisterRequest {
     @NotBlank(message = "La dirección es obligatoria")
     private String address;
     private Long roleId;
+    private String roleName;
 }

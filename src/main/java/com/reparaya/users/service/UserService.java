@@ -58,8 +58,9 @@ public class UserService {
             throw new IllegalArgumentException("El email ya existe en LDAP: " + request.getEmail());
         }
 
-        Role role = roleRepository.findById(request.getRoleId())
-                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + request.getRoleId()));
+        String normalized = normalizeRoleName(request.getRoleName());
+        Role role = roleRepository.findByName(normalized)
+                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + normalized));
 
         User newUser = User.builder()
             .email(request.getEmail())
@@ -71,6 +72,7 @@ public class UserService {
             .dni(request.getDni())
             .active(true)
             .build();
+
 
         User savedUser = userRepository.save(newUser);
         log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
@@ -96,6 +98,12 @@ public class UserService {
         }
 
         return savedUser;
+    }
+
+    private String normalizeRoleName(String raw) {
+        if (raw == null) throw new IllegalArgumentException("Debe enviar roleName");
+        String n = raw.trim().toUpperCase();
+        return n.startsWith("ROLE_") ? n : "ROLE_" + n;
     }
 
     public RegisterResponse registerUser(RegisterRequest request) {
