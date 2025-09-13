@@ -129,6 +129,7 @@ public class UserService {
                     .phoneNumber(user.getPhoneNumber())
                     .address(user.getAddress())
                     .isActive(user.getActive())
+                    .dni(user.getDni())
                     .build(),
                 SUCCESS_LOGIN
         );
