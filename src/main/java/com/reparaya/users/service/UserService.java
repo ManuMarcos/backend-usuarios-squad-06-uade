@@ -101,10 +101,12 @@ public class UserService {
     }
 
     private String normalizeRoleName(String raw) {
-        if (raw == null) throw new IllegalArgumentException("Debe enviar roleName");
-        String n = raw.trim().toUpperCase();
-        return n.startsWith("ROLE_") ? n : "ROLE_" + n;
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("Debe enviar roleName");
+        }
+        return raw.trim().toUpperCase();
     }
+
 
     public RegisterResponse registerUser(RegisterRequest request) {
         User savedUser = createUser(request);
