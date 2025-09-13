@@ -58,7 +58,7 @@ public class UserService {
             throw new IllegalArgumentException("El email ya existe en LDAP: " + request.getEmail());
         }
 
-        String normalized = normalizeRoleName(request.getRoleName());
+        String normalized = normalizeRoleName(request.getRole());
         Role role = roleRepository.findByName(normalized)
                 .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + normalized));
 
@@ -102,7 +102,7 @@ public class UserService {
 
     private String normalizeRoleName(String raw) {
         if (raw == null || raw.isBlank()) {
-            throw new IllegalArgumentException("Debe enviar roleName");
+            throw new IllegalArgumentException("Debe enviar role");
         }
         return raw.trim().toUpperCase();
     }

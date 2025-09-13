@@ -38,9 +38,6 @@ public class User {
 
     private String dni;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    //Mapeo a tabla roles
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "role_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_users_role"))
