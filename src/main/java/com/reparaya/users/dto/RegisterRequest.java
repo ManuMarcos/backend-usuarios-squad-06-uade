@@ -22,6 +22,5 @@ public class RegisterRequest {
     private String phoneNumber;
     @NotBlank(message = "La dirección es obligatoria")
     private String address;
-    private Long roleId;
     private String roleName;
 }
