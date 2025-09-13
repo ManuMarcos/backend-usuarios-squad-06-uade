@@ -4,6 +4,7 @@ import com.reparaya.users.dto.*;
 import com.reparaya.users.entity.User;
 import com.reparaya.users.repository.UserRepository;
 import com.reparaya.users.util.JwtUtil;
+import com.reparaya.users.util.RegisterOriginEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -71,6 +72,7 @@ public class UserService {
             .role(role)
             .dni(request.getDni())
             .active(true)
+            .registeOrigin(RegisterOriginEnum.WEB_USUARIOS)
             .build();
 
 

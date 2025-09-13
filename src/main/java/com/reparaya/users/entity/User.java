@@ -1,5 +1,6 @@
 package com.reparaya.users.entity;
 
+import com.reparaya.users.util.RegisterOriginEnum;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -53,5 +54,8 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "register_origin")
+    private RegisterOriginEnum registeOrigin;
 
 }
