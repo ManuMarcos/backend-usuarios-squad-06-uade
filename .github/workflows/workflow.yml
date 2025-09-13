@@ -74,10 +74,10 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            docker pull manumarcos/arreglaya-backend:latest
-            docker stop arreglaya-backend-app || true
-            docker rm arreglaya-backend-app || true
-            docker run -d --name arreglaya-backend-app -p 80:80 manumarcos/arreglaya-backend:latest
+            sudo docker pull manumarcos/arreglaya-backend:latest
+            sudo docker stop arreglaya-backend-app || true
+            sudo docker rm arreglaya-backend-app || true
+            sudo docker run -d --name arreglaya-backend-app -p 80:80 manumarcos/arreglaya-backend:latest
 
 
 
