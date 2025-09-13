@@ -36,6 +36,8 @@ public class User {
 
     private String address;
 
+    private String dni;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserRole role;

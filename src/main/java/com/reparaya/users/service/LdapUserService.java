@@ -128,6 +128,38 @@ public class LdapUserService {
             return false;
         }
     }
-    
+
+    public boolean updateUserInLdap(String email, User user) {
+        try {
+            LdapName userDn = LdapNameBuilder.newInstance()
+                    .add("ou", "users")
+                    .add("uid", email)
+                    .build();
+
+            if (!userExistsInLdap(email)) {
+                log.warn("No se puede actualizar: usuario no existe en LDAP: {}", email);
+                return false;
+            }
+
+            ModificationItem[] mods = new ModificationItem[]{
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("cn", user.getFirstName() + " " + user.getLastName())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("sn", user.getLastName())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("mail", user.getEmail())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("description", user.getRole().toString()))
+            };
+
+            ldapTemplate.modifyAttributes(userDn, mods);
+            log.info("Usuario actualizado en LDAP: {}", user.getEmail());
+            return true;
+
+        } catch (Exception e) {
+            log.error("Error al actualizar usuario en LDAP {}: {}", email, e.getMessage(), e);
+            return false;
+        }
+    }
 }
 

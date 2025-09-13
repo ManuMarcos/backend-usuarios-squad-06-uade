@@ -20,12 +20,16 @@ import java.util.Optional;
 @Transactional
 public class UserService {
 
-    public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
-    public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
     private final UserRepository userRepository;
     private final LdapUserService ldapUserService;
     private final JwtUtil jwtUtil;
-    
+
+    public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
+    public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
+    public static final String SUCCESS_USER_UPDATE = "Usuario actualizado con éxito";
+    public static final String SUCCESS_LOGIN = "Login exitoso";
+    public static final String SUCCESS_REGISTER = "Usuario registrado exitosamente.";
+
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -40,7 +44,6 @@ public class UserService {
     public Optional<User> getUserByEmail(String email) {
         return userRepository.findByEmail(email);
     }
-
 
     public User createUser(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
@@ -57,6 +60,7 @@ public class UserService {
             .lastName(request.getLastName())
             .phoneNumber(request.getPhoneNumber())
             .address(request.getAddress())
+            .dni(request.getDni())
             .role(request.getRole())
             .active(true)
             .build();
@@ -72,6 +76,7 @@ public class UserService {
                 .phoneNumber(savedUser.getPhoneNumber())
                 .address(savedUser.getAddress())
                 .role(savedUser.getRole())
+                .dni(savedUser.getDni())
                 .active(savedUser.getActive())
                 .build();
                 
@@ -89,7 +94,7 @@ public class UserService {
     public RegisterResponse registerUser(RegisterRequest request) {
         User savedUser = createUser(request);
         return new RegisterResponse(
-            "Usuario registrado exitosamente.",
+                SUCCESS_REGISTER,
             savedUser.getEmail(),
             savedUser.getRole().toString()
         );
@@ -125,7 +130,7 @@ public class UserService {
                     .address(user.getAddress())
                     .isActive(user.getActive())
                     .build(),
-            "Login exitoso"
+                SUCCESS_LOGIN
         );
     }
 
@@ -156,5 +161,40 @@ public class UserService {
         } else {
             return ERROR_PWD_RESET;
         }
+    }
+
+    @Transactional
+    public String updateUserPartially(Long userId, UpdateUserRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+
+        String email = user.getEmail();
+
+        if (request.getEmail() != null) user.setEmail(request.getEmail());
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
+        if (request.getAddress() != null) user.setAddress(request.getAddress());
+        if (request.getDni() != null) user.setDni(request.getDni());
+
+        user.setUpdatedAt(LocalDateTime.now());
+        User updatedUser = userRepository.save(user);
+
+        log.info("Usuario parcialmente actualizado: {}", updatedUser.getEmail());
+
+        boolean ldapUpdated = ldapUserService.updateUserInLdap(email, updatedUser);
+        if (!ldapUpdated) {
+            log.error("No se pudo actualizar el usuario en LDAP: {}", email);
+            throw new RuntimeException("Error al actualizar usuario en LDAP");
+        }
+
+        return SUCCESS_USER_UPDATE;
+    }
+
+    public void changeUserIsActive(Long userId, UserChangeActiveRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+        user.setActive(request.isActive());
+        user.setUpdatedAt(LocalDateTime.now());
     }
 }
