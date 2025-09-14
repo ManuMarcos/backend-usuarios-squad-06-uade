@@ -149,6 +149,7 @@ public class UserService {
                     .address(user.getAddress())
                     .isActive(user.getActive())
                     .dni(user.getDni())
+                    .role(user.getRole().getName())
                     .build(),
                 SUCCESS_LOGIN
         );

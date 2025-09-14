@@ -14,6 +14,7 @@ public class UserInfoLoginResponse {
     private String lastName;
     private String phoneNumber;
     private String address;
+    private String role;
     private boolean isActive;
     private String dni;
 }
