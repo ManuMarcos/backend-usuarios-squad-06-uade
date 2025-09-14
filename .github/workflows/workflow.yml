@@ -75,10 +75,8 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo docker pull manumarcos/arreglaya-backend:latest
-            sudo docker stop arreglaya-backend-app || true
-            sudo docker rm arreglaya-backend-app || true
-            sudo docker compose up -d arregla-ya-backend-app
+            cd ~/backend
+            sudo docker compose up -d --force-recreate --pull always backend-app
 
 
 
