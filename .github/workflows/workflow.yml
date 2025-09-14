@@ -78,7 +78,7 @@ jobs:
             sudo docker pull manumarcos/arreglaya-backend:latest
             sudo docker stop arreglaya-backend-app || true
             sudo docker rm arreglaya-backend-app || true
-            sudo docker compose up -d backend
+            sudo docker compose up -d arregla-ya-backend-app
 
 
 
