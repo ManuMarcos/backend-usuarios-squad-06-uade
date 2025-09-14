@@ -12,12 +12,8 @@ Este backend corre en **Java 21** con **Spring Boot** y expone un servicio RESTf
 Este repositorio incluye la especificación **OpenAPI 3.0** de la API de Usuarios en la carpeta:
 
 
-## 🚀 Cómo usar el archivo OpenAPI
+## 🚀 Cómo usar OpenAPI
 
-### 1. Swagger Editor Online
-Podés abrir el archivo en el editor oficial de Swagger:
-- Ir a [https://editor.swagger.io/](https://editor.swagger.io/)
-- Importar el archivo `api.yaml` de la carpeta resources.
-- Visualizar la documentación interactiva y probar requests.
+Abrir http://localhost:8081/swagger-ui/index.html. Ahi estará toda la documentacion OpenAPI
 
 ---
