@@ -20,8 +20,8 @@ public class RegisterRequest {
     private String dni;
     @NotBlank(message = "El numero de celular/telefono es obligatorio")
     private String phoneNumber;
-    @NotBlank(message = "La dirección es obligatoria")
-    private String address;
+    private AddressInfo primaryAddressInfo;
+    private AddressInfo secondaryAddressInfo;
     @NotBlank(message = "El rol es obligatorio")
     private String role;
 }

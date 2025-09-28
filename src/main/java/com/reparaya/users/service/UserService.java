@@ -1,19 +1,20 @@
 package com.reparaya.users.service;
 
 import com.reparaya.users.dto.*;
+import com.reparaya.users.entity.Address;
 import com.reparaya.users.entity.User;
 import com.reparaya.users.repository.UserRepository;
 import com.reparaya.users.util.JwtUtil;
 import com.reparaya.users.util.RegisterOriginEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.reparaya.users.entity.Role;
 import com.reparaya.users.repository.RoleRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,13 +69,20 @@ public class UserService {
             .firstName(request.getFirstName())
             .lastName(request.getLastName())
             .phoneNumber(request.getPhoneNumber())
-            .address(request.getAddress())
             .role(role)
             .dni(request.getDni())
             .active(true)
-            .registeOrigin(RegisterOriginEnum.WEB_USUARIOS)
+            .registerOrigin(RegisterOriginEnum.WEB_USUARIOS.name())
             .build();
 
+        List<Address> addresses = new ArrayList<>();
+        addresses.add(mapAddress(request.getPrimaryAddressInfo(), newUser)); // siempre obligatoria
+
+        if (request.getSecondaryAddressInfo() != null) {
+            addresses.add(mapAddress(request.getSecondaryAddressInfo(), newUser));
+        }
+
+        newUser.setAddresses(addresses);
 
         User savedUser = userRepository.save(newUser);
         log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
@@ -85,7 +93,6 @@ public class UserService {
                 .firstName(savedUser.getFirstName())
                 .lastName(savedUser.getLastName())
                 .phoneNumber(savedUser.getPhoneNumber())
-                .address(savedUser.getAddress())
                 .role(savedUser.getRole())
                 .dni(savedUser.getDni())
                 .active(savedUser.getActive())
@@ -100,6 +107,22 @@ public class UserService {
         }
 
         return savedUser;
+    }
+
+    private Address mapAddress(AddressInfo dto, User user) {
+        if (dto == null) return null;
+
+        return Address.builder()
+                .state(dto.getState())
+                .city(dto.getCity())
+                .locality(dto.getLocality())
+                .street(dto.getStreet())
+                .number(dto.getNumber())
+                .floor(dto.getFloor())
+                .apartment(dto.getApartment())
+                .postalCode(dto.getPostalCode())
+                .user(user)
+                .build();
     }
 
     private String normalizeRoleName(String raw) {
@@ -146,7 +169,7 @@ public class UserService {
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())
                     .phoneNumber(user.getPhoneNumber())
-                    .address(user.getAddress())
+                    .address(user.getAddresses())
                     .isActive(user.getActive())
                     .dni(user.getDni())
                     .role(user.getRole().getName())
@@ -195,7 +218,6 @@ public class UserService {
         if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
         if (request.getLastName() != null) user.setLastName(request.getLastName());
         if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
-        if (request.getAddress() != null) user.setAddress(request.getAddress());
         if (request.getDni() != null) user.setDni(request.getDni());
 
         user.setUpdatedAt(LocalDateTime.now());
