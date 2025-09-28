@@ -84,7 +84,33 @@ public class UserController {
                     required = true,
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = RegisterRequest.class),
-                            examples = @ExampleObject(value = "{\n  \"email\":\"john.smith@mail.com\",\n  \"password\":\"S3gur4!\",\n  \"firstName\":\"John\",\n  \"lastName\":\"Smith\",\n \"dni\":\"42233698\",\n  \"phoneNumber\":\"+54 9 11 1111 2222\",\n  \"address\":\"Calle Falsa 123\",\n  \"role\":\"ADMIN\"\n}"))
+                            examples = @ExampleObject(value = "{\n" +
+                                    "  \"email\":\"john.smith@mail.com\",\n" +
+                                    "  \"password\":\"S3gur4!\",\n" +
+                                    "  \"firstName\":\"John\",\n" +
+                                    "  \"lastName\":\"Smith\",\n" +
+                                    "  \"dni\":\"42233698\",\n" +
+                                    "  \"phoneNumber\":\"+54 9 11 1111 2222\",\n" +
+                                    "  \"role\":\"ADMIN\",\n" +
+                                    "  \"primaryAddressInfo\": {\n" +
+                                    "    \"state\": \"Buenos Aires\",\n" +
+                                    "    \"city\": \"Avellaneda\",\n" +
+                                    "    \"locality\": \"Sarandi\",\n" +
+                                    "    \"street\": \"calle\",\n" +
+                                    "    \"number\": \"123\",\n" +
+                                    "    \"floor\": \"2\",\n" +
+                                    "    \"apartment\": \"C\",\n" +
+                                    "    \"postalCode\": \"1874\"\n" +
+                                    "  },\n" +
+                                    "  \"secondaryAddressInfo\": {\n" +
+                                    "    \"state\": \"Buenos Aires\",\n" +
+                                    "    \"city\": \"Quilmes\",\n" +
+                                    "    \"locality\": \"Quilmes centro\",\n" +
+                                    "    \"street\": \"calle\",\n" +
+                                    "    \"number\": \"321\",\n" +
+                                    "    \"postalCode\": \"1878\"\n" +
+                                    "  }\n" +
+                                    "}"))
             ),
             responses = {
                     @ApiResponse(responseCode = "201", description = "Creado",
@@ -99,7 +125,8 @@ public class UserController {
             RegisterResponse response = userService.registerUser(request);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(RegisterResponse.builder().message(e.getMessage()).build());
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(RegisterResponse.builder().message(e.getMessage()).build());
         }
     }
 

@@ -3,6 +3,7 @@ package com.reparaya.users.service;
 import com.reparaya.users.dto.*;
 import com.reparaya.users.entity.Address;
 import com.reparaya.users.entity.User;
+import com.reparaya.users.mapper.AddressMapper;
 import com.reparaya.users.repository.UserRepository;
 import com.reparaya.users.util.JwtUtil;
 import com.reparaya.users.util.RegisterOriginEnum;
@@ -169,7 +170,7 @@ public class UserService {
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())
                     .phoneNumber(user.getPhoneNumber())
-                    .address(user.getAddresses())
+                    .address(AddressMapper.toDtoList(user.getAddresses()))
                     .isActive(user.getActive())
                     .dni(user.getDni())
                     .role(user.getRole().getName())

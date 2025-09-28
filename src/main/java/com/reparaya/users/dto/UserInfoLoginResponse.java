@@ -1,6 +1,5 @@
 package com.reparaya.users.dto;
 
-import com.reparaya.users.entity.Address;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +15,7 @@ public class UserInfoLoginResponse {
     private String firstName;
     private String lastName;
     private String phoneNumber;
-    private List<Address> address;
+    private List<AddressInfo> address;
     private String role;
     private boolean isActive;
     private String dni;
