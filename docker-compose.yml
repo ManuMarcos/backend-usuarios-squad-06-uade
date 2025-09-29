@@ -91,7 +91,7 @@ services:
     image: ghcr.io/ldapaccountmanager/lam:8.4
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8084:80"
     volumes:
       - lamconfig:/var/lib/ldap-account-manager/config
     environment:
