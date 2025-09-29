@@ -6,7 +6,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: CI/CD Workflow
+name: CI/CD Workflow Dev
 
 on:
   pull_request:
@@ -57,11 +57,11 @@ jobs:
 
       #5. Build de la imagen Docker
       - name: Build Docker image
-        run: docker build -t manumarcos/arreglaya-backend:latest .
+        run: docker build -t manumarcos/arreglaya-backend:dev .
 
       #6. Push a DockerHub
       - name: Push image
-        run: docker push manumarcos/arreglaya-backend:latest
+        run: docker push manumarcos/arreglaya-backend:dev
 
   deploy:
     runs-on: ubuntu-latest
@@ -76,7 +76,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/backend
-            sudo docker compose up -d --force-recreate --pull always backend-app
+            sudo docker compose up -d --force-recreate --pull always backend-app-dev
 
 
 
