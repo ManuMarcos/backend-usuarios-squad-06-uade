@@ -10,6 +10,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -35,7 +37,8 @@ public class User {
     @Column(name = "phone_number")
     private String phoneNumber;
 
-    private String address;
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Address> addresses = new ArrayList<>();
 
     private String dni;
 
@@ -56,6 +59,6 @@ public class User {
     private LocalDateTime updatedAt;
 
     @Column(name = "register_origin")
-    private RegisterOriginEnum registeOrigin;
+    private String registerOrigin;
 
 }
