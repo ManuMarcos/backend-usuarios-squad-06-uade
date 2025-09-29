@@ -1,16 +1,21 @@
 package com.reparaya.users.service;
 
 import com.reparaya.users.dto.*;
+import com.reparaya.users.entity.Address;
 import com.reparaya.users.entity.User;
+import com.reparaya.users.mapper.AddressMapper;
 import com.reparaya.users.repository.UserRepository;
 import com.reparaya.users.util.JwtUtil;
+import com.reparaya.users.util.RegisterOriginEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.reparaya.users.entity.Role;
+import com.reparaya.users.repository.RoleRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,12 +25,18 @@ import java.util.Optional;
 @Transactional
 public class UserService {
 
-    public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
-    public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
     private final UserRepository userRepository;
     private final LdapUserService ldapUserService;
     private final JwtUtil jwtUtil;
-    
+
+    public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
+    public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
+    public static final String SUCCESS_USER_UPDATE = "Usuario actualizado con éxito";
+    public static final String SUCCESS_LOGIN = "Login exitoso";
+    public static final String SUCCESS_REGISTER = "Usuario registrado exitosamente.";
+
+    private final RoleRepository roleRepository;
+
     @Transactional(readOnly = true)
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -41,7 +52,6 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
 
-
     public User createUser(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("El email ya está registrado: " + request.getEmail());
@@ -51,15 +61,29 @@ public class UserService {
             throw new IllegalArgumentException("El email ya existe en LDAP: " + request.getEmail());
         }
 
+        String normalized = normalizeRoleName(request.getRole());
+        Role role = roleRepository.findByName(normalized)
+                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + normalized));
+
         User newUser = User.builder()
             .email(request.getEmail())
             .firstName(request.getFirstName())
             .lastName(request.getLastName())
             .phoneNumber(request.getPhoneNumber())
-            .address(request.getAddress())
-            .role(request.getRole())
+            .role(role)
+            .dni(request.getDni())
             .active(true)
+            .registerOrigin(RegisterOriginEnum.WEB_USUARIOS.name())
             .build();
+
+        List<Address> addresses = new ArrayList<>();
+        addresses.add(mapAddress(request.getPrimaryAddressInfo(), newUser)); // siempre obligatoria
+
+        if (request.getSecondaryAddressInfo() != null) {
+            addresses.add(mapAddress(request.getSecondaryAddressInfo(), newUser));
+        }
+
+        newUser.setAddresses(addresses);
 
         User savedUser = userRepository.save(newUser);
         log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
@@ -70,8 +94,8 @@ public class UserService {
                 .firstName(savedUser.getFirstName())
                 .lastName(savedUser.getLastName())
                 .phoneNumber(savedUser.getPhoneNumber())
-                .address(savedUser.getAddress())
                 .role(savedUser.getRole())
+                .dni(savedUser.getDni())
                 .active(savedUser.getActive())
                 .build();
                 
@@ -86,12 +110,36 @@ public class UserService {
         return savedUser;
     }
 
+    private Address mapAddress(AddressInfo dto, User user) {
+        if (dto == null) return null;
+
+        return Address.builder()
+                .state(dto.getState())
+                .city(dto.getCity())
+                .locality(dto.getLocality())
+                .street(dto.getStreet())
+                .number(dto.getNumber())
+                .floor(dto.getFloor())
+                .apartment(dto.getApartment())
+                .postalCode(dto.getPostalCode())
+                .user(user)
+                .build();
+    }
+
+    private String normalizeRoleName(String raw) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException("Debe enviar role");
+        }
+        return raw.trim().toUpperCase();
+    }
+
+
     public RegisterResponse registerUser(RegisterRequest request) {
         User savedUser = createUser(request);
         return new RegisterResponse(
-            "Usuario registrado exitosamente.",
+                SUCCESS_REGISTER,
             savedUser.getEmail(),
-            savedUser.getRole().toString()
+            savedUser.getRole().getName()
         );
     }
 
@@ -112,7 +160,7 @@ public class UserService {
 
         User user = optUser.get();
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().toString());
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName());
         
         return new LoginResponse(
             token,
@@ -122,10 +170,12 @@ public class UserService {
                     .firstName(user.getFirstName())
                     .lastName(user.getLastName())
                     .phoneNumber(user.getPhoneNumber())
-                    .address(user.getAddress())
+                    .address(AddressMapper.toDtoList(user.getAddresses()))
                     .isActive(user.getActive())
+                    .dni(user.getDni())
+                    .role(user.getRole().getName())
                     .build(),
-            "Login exitoso"
+                SUCCESS_LOGIN
         );
     }
 
@@ -156,5 +206,39 @@ public class UserService {
         } else {
             return ERROR_PWD_RESET;
         }
+    }
+
+    @Transactional
+    public String updateUserPartially(Long userId, UpdateUserRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+
+        String email = user.getEmail();
+
+        if (request.getEmail() != null) user.setEmail(request.getEmail());
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
+        if (request.getDni() != null) user.setDni(request.getDni());
+
+        user.setUpdatedAt(LocalDateTime.now());
+        User updatedUser = userRepository.save(user);
+
+        log.info("Usuario parcialmente actualizado: {}", updatedUser.getEmail());
+
+        boolean ldapUpdated = ldapUserService.updateUserInLdap(email, updatedUser);
+        if (!ldapUpdated) {
+            log.error("No se pudo actualizar el usuario en LDAP: {}", email);
+            throw new RuntimeException("Error al actualizar usuario en LDAP");
+        }
+
+        return SUCCESS_USER_UPDATE;
+    }
+
+    public void changeUserIsActive(Long userId, UserChangeActiveRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+        user.setActive(request.isActive());
+        user.setUpdatedAt(LocalDateTime.now());
     }
 }

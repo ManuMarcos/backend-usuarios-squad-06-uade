@@ -1,16 +1,73 @@
 services:
-  postgres:
+
+  backend-app-prod:
+    image: manumarcos/arreglaya-backend:latest
+    container_name: backend-app-prod
+    depends_on:
+      - postgres-prod
+      - ldap
+    environment:
+      - SERVER_PORT=${SERVER_PORT_PROD}
+      - POSTGRES_DB=${POSTGRES_DB_PROD}
+      - POSTGRES_USER=${POSTGRES_USER_PROD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_PROD}
+      - LDAP_SERVER=${LDAP_SERVER}
+      - LDAP_DOMAIN=${LDAP_DOMAIN}
+      - LDAP_BASE_DN=${LDAP_BASE_DN}
+      - LDAP_USER=cn=admin,${LDAP_BASE_DN}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
+      - DATASOURCE_URL=${DATASOURCE_URL_PROD}
+    ports:
+      - "${SERVER_PORT_PROD}:${SERVER_PORT_PROD}"
+    restart: unless-stopped
+
+  backend-app-dev:
+    image: manumarcos/arreglaya-backend:dev
+    container_name: backend-app-dev
+    depends_on:
+      - postgres-dev
+      - ldap
+    environment:
+      - SERVER_PORT=${SERVER_PORT_DEV}
+      - POSTGRES_DB=${POSTGRES_DB_DEV}
+      - POSTGRES_USER=${POSTGRES_USER_DEV}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEV}
+      - LDAP_SERVER=${LDAP_SERVER}
+      - LDAP_DOMAIN=${LDAP_DOMAIN}
+      - LDAP_BASE_DN=${LDAP_BASE_DN}
+      - LDAP_USER=cn=admin,${LDAP_BASE_DN}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
+      - DATASOURCE_URL=${DATASOURCE_URL_DEV}
+    ports:
+      - "${SERVER_PORT_DEV}:${SERVER_PORT_DEV}"
+    restart: unless-stopped
+
+
+  postgres-prod:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-users_db}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB_PROD:-users_db}
+      - POSTGRES_USER=${POSTGRES_USER_PROD:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_PROD:-postgres}
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    hostname: postgres
+      - postgres_data_prod:/var/lib/postgresql/data
+    hostname: postgres-prod
+
+  postgres-dev:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB_DEV:-users_db}
+      - POSTGRES_USER=${POSTGRES_USER_DEV:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEV:-postgres}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    hostname: postgres-dev
 
   ldap:
     image: osixia/openldap:1.5.0
@@ -34,7 +91,7 @@ services:
     image: ghcr.io/ldapaccountmanager/lam:8.4
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8084:80"
     volumes:
       - lamconfig:/var/lib/ldap-account-manager/config
     environment:
@@ -47,7 +104,8 @@ services:
     hostname: ldap-account-manager
 
 volumes:
-  postgres_data:
+  postgres_data_prod:
+  postgres_data_dev:
   lamconfig:
   ldap:
   slapd:

@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.List;
+
 @Getter
 @Builder
 @AllArgsConstructor
@@ -13,6 +15,8 @@ public class UserInfoLoginResponse {
     private String firstName;
     private String lastName;
     private String phoneNumber;
-    private String address;
+    private List<AddressInfo> address;
+    private String role;
     private boolean isActive;
+    private String dni;
 }

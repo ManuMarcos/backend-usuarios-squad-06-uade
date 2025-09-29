@@ -1,21 +1,14 @@
 package com.reparaya.users.service;
 
 import com.reparaya.users.entity.User;
-import com.reparaya.users.entity.UserRole;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ldap.core.LdapTemplate;
 import org.springframework.ldap.support.LdapNameBuilder;
 import org.springframework.stereotype.Service;
 
-import javax.naming.NamingException;
 import javax.naming.directory.*;
 import javax.naming.ldap.LdapName;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
-import org.springframework.ldap.core.DirContextAdapter;
 
 @Slf4j
 @Service
@@ -128,6 +121,38 @@ public class LdapUserService {
             return false;
         }
     }
-    
+
+    public boolean updateUserInLdap(String email, User user) {
+        try {
+            LdapName userDn = LdapNameBuilder.newInstance()
+                    .add("ou", "users")
+                    .add("uid", email)
+                    .build();
+
+            if (!userExistsInLdap(email)) {
+                log.warn("No se puede actualizar: usuario no existe en LDAP: {}", email);
+                return false;
+            }
+
+            ModificationItem[] mods = new ModificationItem[]{
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("cn", user.getFirstName() + " " + user.getLastName())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("sn", user.getLastName())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("mail", user.getEmail())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("description", user.getRole().toString()))
+            };
+
+            ldapTemplate.modifyAttributes(userDn, mods);
+            log.info("Usuario actualizado en LDAP: {}", user.getEmail());
+            return true;
+
+        } catch (Exception e) {
+            log.error("Error al actualizar usuario en LDAP {}: {}", email, e.getMessage(), e);
+            return false;
+        }
+    }
 }
 
