@@ -1,0 +1,54 @@
+services:
+  backend-app-dev:
+    image: manumarcos/arreglaya-backend:dev
+    container_name: backend-app-dev
+    depends_on:
+      - postgres-dev
+      - ldap-dev
+    environment:
+      - SERVER_PORT=${SERVER_PORT_DEV}
+      - POSTGRES_DB=${POSTGRES_DB_DEV}
+      - POSTGRES_USER=${POSTGRES_USER_DEV}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEV}
+      - LDAP_SERVER=${LDAP_SERVER_DEV}
+      - LDAP_DOMAIN=${LDAP_DOMAIN_DEV}
+      - LDAP_BASE_DN=${LDAP_BASE_DN_DEV}
+      - LDAP_USER=cn=admin,${LDAP_BASE_DN_DEV}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_DEV}
+      - DATASOURCE_URL=${DATASOURCE_URL_DEV}
+    ports:
+      - "${SERVER_PORT_DEV}:${SERVER_PORT_DEV}"
+    restart: unless-stopped
+
+  postgres-dev:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB_DEV}
+      - POSTGRES_USER=${POSTGRES_USER_DEV}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEV}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+
+  ldap-dev:
+    image: osixia/openldap:1.5.0
+    restart: unless-stopped
+    ports:
+      - "389:389"
+      - "636:636"
+    environment:
+      - LDAP_ORGANISATION=${LDAP_ORGANISATION_DEV}
+      - LDAP_DOMAIN=${LDAP_DOMAIN_DEV}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_DEV}
+    command: "--loglevel info --copy-service"
+    volumes:
+      - ldap_data_dev:/var/lib/ldap
+      - slapd_data_dev:/etc/ldap/slapd.d
+      - ./ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom
+
+volumes:
+  postgres_data_dev:
+  ldap_data_dev:
+  slapd_data_dev:
