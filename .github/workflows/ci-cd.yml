@@ -36,16 +36,17 @@ jobs:
       # 3. Build y test con Maven
       - name: Build with Maven
         run: mvn -B package --file pom.xml
-            - SERVER_PORT=8081
-            - POSTGRES_DB=users_db
-            - POSTGRES_USER=postgres
-            - POSTGRES_PASSWORD=postgres
-            - LDAP_SERVER=ldap://ldap-test
-            - LDAP_DOMAIN=arreglaya.test
-            - LDAP_BASE_DN=dc=arreglaya,dc=prod
-            - LDAP_USER=cn=admin,dc=arreglaya,dc=prod
-            - LDAP_ADMIN_PASSWORD=arreglayaprodadmin
-            - DATASOURCE_URL=jdbc:postgresql://postgres:5432/users_db
+        env:
+            SERVER_PORT=8081
+            POSTGRES_DB=users_db
+            POSTGRES_USER=postgres
+            POSTGRES_PASSWORD=postgres
+            LDAP_SERVER=ldap://ldap-test
+            LDAP_DOMAIN=arreglaya.test
+            LDAP_BASE_DN=dc=arreglaya,dc=prod
+            LDAP_USER=cn=admin,dc=arreglaya,dc=prod
+            LDAP_ADMIN_PASSWORD=arreglayaprodadmin
+            DATASOURCE_URL=jdbc:postgresql://postgres:5432/users_db
 
 
       # 4. Login a DockerHub
