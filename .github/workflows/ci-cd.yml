@@ -50,12 +50,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 5. Build + push imagen solo para prod (main)
+      # 5. Build + push imagen para dev y prod
       - name: Build and Push Docker image
-        if: github.ref_name == 'main'
         run: |
           IMAGE_NAME=manumarcos/arreglaya-backend
-          TAG=latest
+          if [ "${GITHUB_REF##*/}" = "develop" ]; then
+            TAG=dev
+          elif [ "${GITHUB_REF##*/}" = "main" ]; then
+            TAG=latest
+          else
+            echo "No se hace build para esta rama"
+            exit 0
+          fi
+          echo "Construyendo imagen con tag $TAG..."
           docker build -t $IMAGE_NAME:$TAG .
           docker push $IMAGE_NAME:$TAG
 
