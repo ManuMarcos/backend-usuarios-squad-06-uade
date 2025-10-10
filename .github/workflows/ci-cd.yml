@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      # PostgreSQL para pruebas en CI
       postgres:
         image: postgres:15
         ports:
@@ -20,11 +19,6 @@ jobs:
           POSTGRES_DB: users_db
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       # 1. Checkout del repo
@@ -42,6 +36,17 @@ jobs:
       # 3. Build y test con Maven
       - name: Build with Maven
         run: mvn -B package --file pom.xml
+            - SERVER_PORT=8081
+            - POSTGRES_DB=users_db
+            - POSTGRES_USER=postgres
+            - POSTGRES_PASSWORD=postgres
+            - LDAP_SERVER=ldap://ldap-test
+            - LDAP_DOMAIN=arreglaya.test
+            - LDAP_BASE_DN=dc=arreglaya,dc=prod
+            - LDAP_USER=cn=admin,dc=arreglaya,dc=prod
+            - LDAP_ADMIN_PASSWORD=arreglayaprodadmin
+            - DATASOURCE_URL=jdbc:postgresql://postgres:5432/users_db
+
 
       # 4. Login a DockerHub
       - name: Login to DockerHub
@@ -50,19 +55,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 5. Build + push imagen para dev y prod
+      # 5. Build + push imagen
       - name: Build and Push Docker image
         run: |
           IMAGE_NAME=manumarcos/arreglaya-backend
-          if [ "${GITHUB_REF##*/}" = "develop" ]; then
-            TAG=dev
-          elif [ "${GITHUB_REF##*/}" = "main" ]; then
-            TAG=latest
-          else
-            echo "No se hace build para esta rama"
-            exit 0
-          fi
-          echo "Construyendo imagen con tag $TAG..."
+          TAG=${GITHUB_REF_NAME}
           docker build -t $IMAGE_NAME:$TAG .
           docker push $IMAGE_NAME:$TAG
 
@@ -78,13 +75,13 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/backend-usuarios-squad-06-uade
+
             if [ "${GITHUB_REF##*/}" = "develop" ]; then
               echo "Desplegando entorno DEV..."
-              docker compose --env-file .env pull backend-app-dev
-              docker compose --env-file .env up -d backend-app-dev
+              docker compose -f docker-compose.dev.yml --env-file .env.dev pull backend-app-dev
+              docker compose -f docker-compose.dev.yml --env-file .env.dev up -d backend-app-dev
             elif [ "${GITHUB_REF##*/}" = "main" ]; then
               echo "Desplegando entorno PROD..."
-              docker compose --env-file .env pull backend-app-prod
-              docker compose --env-file .env up -d backend-app-prod
+              docker compose -f docker-compose.prod.yml --env-file .env.prod pull backend-app
+              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend-app
             fi
-          
