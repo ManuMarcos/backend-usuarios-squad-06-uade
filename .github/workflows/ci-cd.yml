@@ -79,3 +79,5 @@ jobs:
               echo "Desplegando entorno PROD..."
               docker compose --env-file .env pull backend-app-prod
               docker compose --env-file .env up -d backend-app-prod
+            fi
+          
