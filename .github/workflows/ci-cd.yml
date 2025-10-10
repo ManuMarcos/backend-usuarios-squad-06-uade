@@ -10,16 +10,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_DB: users_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-
     steps:
       # 1. Checkout del repo
       - name: Checkout code
@@ -44,11 +34,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 5. Build + push imagen
+      # 5. Build + push imagen solo para prod (main)
       - name: Build and Push Docker image
+        if: github.ref_name == 'main'
         run: |
           IMAGE_NAME=manumarcos/arreglaya-backend
-          TAG=${GITHUB_REF_NAME}
+          TAG=latest
           docker build -t $IMAGE_NAME:$TAG .
           docker push $IMAGE_NAME:$TAG
 
@@ -64,13 +55,11 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/backend-usuarios-squad-06-uade
-
             if [ "${GITHUB_REF##*/}" = "develop" ]; then
               echo "Desplegando entorno DEV..."
-              docker compose -f docker-compose.dev.yml --env-file .env.dev pull backend-app-dev
-              docker compose -f docker-compose.dev.yml --env-file .env.dev up -d backend-app-dev
+              docker compose --env-file .env pull backend-app-dev
+              docker compose --env-file .env up -d backend-app-dev
             elif [ "${GITHUB_REF##*/}" = "main" ]; then
               echo "Desplegando entorno PROD..."
-              docker compose -f docker-compose.prod.yml --env-file .env.prod pull backend-app
-              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d backend-app
-            fi
+              docker compose --env-file .env pull backend-app-prod
+              docker compose --env-file .env up -d backend-app-prod
