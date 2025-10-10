@@ -51,7 +51,7 @@ services:
 
   # ENTORNO DE DESARROLLO
   backend-app-dev:
-    image: manumarcos/arreglaya-backend:latest
+    image: manumarcos/arreglaya-backend:dev
     container_name: backend-app-dev
     depends_on:
       - postgres-dev
