@@ -24,6 +24,7 @@ services:
   postgres-prod:
     image: postgres:15-alpine
     restart: unless-stopped
+    container_name: postgres-prod
     environment:
       - POSTGRES_DB=${POSTGRES_DB_PROD}
       - POSTGRES_USER=${POSTGRES_USER_PROD}
@@ -59,8 +60,8 @@ services:
     environment:
       - SERVER_PORT=${SERVER_PORT_DEV}
       - POSTGRES_DB=${POSTGRES_DB_DEV}
-      - POSTGRES_USER=${POSTGRES_USER_DEV}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEV}
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
       - LDAP_SERVER=${LDAP_SERVER_DEV}
       - LDAP_DOMAIN=${LDAP_DOMAIN_DEV}
       - LDAP_BASE_DN=${LDAP_BASE_DN_DEV}
@@ -74,6 +75,7 @@ services:
   postgres-dev:
     image: postgres:15-alpine
     restart: unless-stopped
+    container_name: postgres-dev
     environment:
       - POSTGRES_DB=${POSTGRES_DB_DEV}
       - POSTGRES_USER=${POSTGRES_USER_DEV}
