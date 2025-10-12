@@ -69,6 +69,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: GITHUB_REF_NAME
           script: |
             cd ~/backend-usuarios-squad-06-uade
             echo "Desplegando entorno ${GITHUB_REF_NAME}"
