@@ -71,7 +71,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ~/backend-usuarios-squad-06-uade
-
+            echo "Desplegando entorno ${GITHUB_REF_NAME}"
             if [ "${GITHUB_REF_NAME}" = "develop" ]; then
               echo "Desplegando entorno DEV..."
               sudo docker compose up -d --force-recreate --pull always backend-app-dev
