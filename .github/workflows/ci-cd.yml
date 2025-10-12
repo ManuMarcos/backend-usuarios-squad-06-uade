@@ -67,10 +67,10 @@ jobs:
 
             if [ "${GITHUB_REF##*/}" = "develop" ]; then
               echo "Desplegando entorno DEV..."
-              docker compose pull backend-app-dev
-              docker compose up -d backend-app-dev
+              sudo docker compose pull backend-app-dev
+              sudo docker compose up -d backend-app-dev
             elif [ "${GITHUB_REF##*/}" = "master" ]; then
               echo "Desplegando entorno PROD..."
-              docker compose pull backend-app-prod
-              docker compose up -d backend-app-prod
+              sudo docker compose pull backend-app-prod
+              sudo docker compose up -d backend-app-prod
             fi
