@@ -65,11 +65,11 @@ jobs:
           script: |
             cd ~/backend-usuarios-squad-06-uade
 
-            if [ "${GITHUB_REF##*/}" = "develop" ]; then
+            if [ "${GITHUB_REF_NAME}" = "develop" ]; then
               echo "Desplegando entorno DEV..."
               sudo docker compose pull backend-app-dev
               sudo docker compose up -d backend-app-dev
-            elif [ "${GITHUB_REF##*/}" = "master" ]; then
+            elif [ "${GITHUB_REF_NAME}" = "master" ]; then
               echo "Desplegando entorno PROD..."
               sudo docker compose pull backend-app-prod
               sudo docker compose up -d backend-app-prod
