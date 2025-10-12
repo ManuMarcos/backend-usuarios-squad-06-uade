@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - develop
-      - main
+      - master
 
 jobs:
   build:
@@ -48,7 +48,14 @@ jobs:
       - name: Build and Push Docker image
         run: |
           IMAGE_NAME=manumarcos/arreglaya-backend
-          TAG=${GITHUB_REF_NAME}
+          if [ "${GITHUB_REF_NAME}" = "develop" ]; then
+            TAG=develop
+          elif [ "${GITHUB_REF_NAME}" = "main" ]; then
+            TAG=latest
+          else
+            TAG=${GITHUB_REF_NAME}
+          fi
+          echo "Building image with tag: $TAG"
           docker build -t $IMAGE_NAME:$TAG .
           docker push $IMAGE_NAME:$TAG
 
@@ -67,10 +74,8 @@ jobs:
 
             if [ "${GITHUB_REF_NAME}" = "develop" ]; then
               echo "Desplegando entorno DEV..."
-              sudo docker compose pull backend-app-dev
-              sudo docker compose up -d backend-app-dev
+              sudo docker compose up -d --force-recreate --pull always backend-app-dev
             elif [ "${GITHUB_REF_NAME}" = "master" ]; then
               echo "Desplegando entorno PROD..."
-              sudo docker compose pull backend-app-prod
-              sudo docker compose up -d backend-app-prod
+              sudo docker compose up -d --force-recreate --pull always backend-app-prod
             fi
