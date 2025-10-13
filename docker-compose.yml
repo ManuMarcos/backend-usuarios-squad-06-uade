@@ -95,6 +95,7 @@ services:
       - LDAP_ORGANISATION=${LDAP_ORGANISATION_DEV}
       - LDAP_DOMAIN=${LDAP_DOMAIN_DEV}
       - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_DEV}
+      - LDAP_PASSWORD_HASH={SHA}
     command: "--loglevel info --copy-service"
     volumes:
       - ldap_data_dev:/var/lib/ldap
