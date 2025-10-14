@@ -35,12 +35,11 @@ public class SecurityConfig {
                     "/api/users/login",
                     "/api/users/*/reset-password",
                     "/api/users/*",
-                    // --- Swagger/OpenAPI ---
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
-                    "/swagger-ui.html"
+                    "/swagger-ui.html",
+                    "/webhook/**"
                 ).permitAll()
-                .requestMatchers("/api/users/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

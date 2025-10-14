@@ -1,111 +1,111 @@
 services:
-
+  # ENTORNO DE PRODUCCIÓN
   backend-app-prod:
     image: manumarcos/arreglaya-backend:latest
     container_name: backend-app-prod
     depends_on:
       - postgres-prod
-      - ldap
+      - ldap-prod
     environment:
       - SERVER_PORT=${SERVER_PORT_PROD}
       - POSTGRES_DB=${POSTGRES_DB_PROD}
       - POSTGRES_USER=${POSTGRES_USER_PROD}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_PROD}
-      - LDAP_SERVER=${LDAP_SERVER}
-      - LDAP_DOMAIN=${LDAP_DOMAIN}
-      - LDAP_BASE_DN=${LDAP_BASE_DN}
-      - LDAP_USER=cn=admin,${LDAP_BASE_DN}
-      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
+      - LDAP_SERVER=${LDAP_SERVER_PROD}
+      - LDAP_DOMAIN=${LDAP_DOMAIN_PROD}
+      - LDAP_BASE_DN=${LDAP_BASE_DN_PROD}
+      - LDAP_USER=cn=admin,${LDAP_BASE_DN_PROD}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_PROD}
       - DATASOURCE_URL=${DATASOURCE_URL_PROD}
     ports:
       - "${SERVER_PORT_PROD}:${SERVER_PORT_PROD}"
     restart: unless-stopped
 
+  postgres-prod:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    container_name: postgres-prod
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB_PROD}
+      - POSTGRES_USER=${POSTGRES_USER_PROD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_PROD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_prod:/var/lib/postgresql/data
+
+  ldap-prod:
+    image: osixia/openldap:1.5.0
+    restart: unless-stopped
+    ports:
+      - "1389:389"
+      - "1636:636"
+    environment:
+      - LDAP_ORGANISATION=${LDAP_ORGANISATION_PROD}
+      - LDAP_DOMAIN=${LDAP_DOMAIN_PROD}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_PROD}
+    command: "--loglevel info --copy-service"
+    volumes:
+      - ldap_data_prod:/var/lib/ldap
+      - slapd_data_prod:/etc/ldap/slapd.d
+      - ./ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom
+
+  # ENTORNO DE DESARROLLO
   backend-app-dev:
-    image: manumarcos/arreglaya-backend:dev
+    image: manumarcos/arreglaya-backend:develop
     container_name: backend-app-dev
     depends_on:
       - postgres-dev
-      - ldap
+      - ldap-dev
     environment:
       - SERVER_PORT=${SERVER_PORT_DEV}
       - POSTGRES_DB=${POSTGRES_DB_DEV}
-      - POSTGRES_USER=${POSTGRES_USER_DEV}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEV}
-      - LDAP_SERVER=${LDAP_SERVER}
-      - LDAP_DOMAIN=${LDAP_DOMAIN}
-      - LDAP_BASE_DN=${LDAP_BASE_DN}
-      - LDAP_USER=cn=admin,${LDAP_BASE_DN}
-      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD}
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - LDAP_SERVER=${LDAP_SERVER_DEV}
+      - LDAP_DOMAIN=${LDAP_DOMAIN_DEV}
+      - LDAP_BASE_DN=${LDAP_BASE_DN_DEV}
+      - LDAP_USER=cn=admin,${LDAP_BASE_DN_DEV}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_DEV}
       - DATASOURCE_URL=${DATASOURCE_URL_DEV}
     ports:
       - "${SERVER_PORT_DEV}:${SERVER_PORT_DEV}"
     restart: unless-stopped
 
-
-  postgres-prod:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB_PROD:-users_db}
-      - POSTGRES_USER=${POSTGRES_USER_PROD:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_PROD:-postgres}
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data_prod:/var/lib/postgresql/data
-    hostname: postgres-prod
-
   postgres-dev:
     image: postgres:15-alpine
     restart: unless-stopped
+    container_name: postgres-dev
     environment:
-      - POSTGRES_DB=${POSTGRES_DB_DEV:-users_db}
-      - POSTGRES_USER=${POSTGRES_USER_DEV:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEV:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB_DEV}
+      - POSTGRES_USER=${POSTGRES_USER_DEV}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD_DEV}
     ports:
-      - "5433:5432"
+      - "55432:5432"
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
-    hostname: postgres-dev
 
-  ldap:
+  ldap-dev:
     image: osixia/openldap:1.5.0
     restart: unless-stopped
     ports:
-      - "389:389"
-      - "636:636"
+      - "13890:389"
+      - "16360:636"
     environment:
-      - LDAP_ORGANISATION=${LDAP_ORGANISATION:-ArreglaYa}
-      - LDAP_DOMAIN=${LDAP_DOMAIN:-arreglaya.com}
-      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD:-arreglayaadmin}
+      - LDAP_ORGANISATION=${LDAP_ORGANISATION_DEV}
+      - LDAP_DOMAIN=${LDAP_DOMAIN_DEV}
+      - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_DEV}
       - LDAP_PASSWORD_HASH={SHA}
     command: "--loglevel info --copy-service"
     volumes:
-      - ldap:/var/lib/ldap
-      - slapd:/etc/ldap/slapd.d
-      - ./ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom
-    hostname: ldap
-
-  ldap-account-manager:
-    image: ghcr.io/ldapaccountmanager/lam:8.4
-    restart: unless-stopped
-    ports:
-      - "8084:80"
-    volumes:
-      - lamconfig:/var/lib/ldap-account-manager/config
-    environment:
-      - LAM_PASSWORD=${LAM_PASSWORD:-lamadmin}
-      - LDAP_SERVER=ldap://ldap
-      - LDAP_DOMAIN=${LDAP_DOMAIN:-arreglaya.com}
-      - LDAP_USER=cn=admin,dc=arreglaya,dc=com
-    depends_on:
-      - ldap
-    hostname: ldap-account-manager
+      - ldap_data_dev:/var/lib/ldap
+      - slapd_data_dev:/etc/ldap/slapd.d
+      - ./ldif-dev:/container/service/slapd/assets/config/bootstrap/ldif/custom
 
 volumes:
   postgres_data_prod:
+  ldap_data_prod:
+  slapd_data_prod:
   postgres_data_dev:
-  lamconfig:
-  ldap:
-  slapd:
+  ldap_data_dev:
+  slapd_data_dev:
