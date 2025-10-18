@@ -19,4 +19,5 @@ public class UserInfoLoginResponse {
     private String role;
     private boolean isActive;
     private String dni;
+    private String profileImageUrl;
 }
