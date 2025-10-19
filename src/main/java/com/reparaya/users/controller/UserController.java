@@ -92,24 +92,22 @@ public class UserController {
                                     "  \"dni\":\"42233698\",\n" +
                                     "  \"phoneNumber\":\"+54 9 11 1111 2222\",\n" +
                                     "  \"role\":\"ADMIN\",\n" +
-                                    "  \"primaryAddressInfo\": {\n" +
-                                    "    \"state\": \"Buenos Aires\",\n" +
-                                    "    \"city\": \"Avellaneda\",\n" +
-                                    "    \"locality\": \"Sarandi\",\n" +
-                                    "    \"street\": \"calle\",\n" +
-                                    "    \"number\": \"123\",\n" +
-                                    "    \"floor\": \"2\",\n" +
-                                    "    \"apartment\": \"C\",\n" +
-                                    "    \"postalCode\": \"1874\"\n" +
-                                    "  },\n" +
-                                    "  \"secondaryAddressInfo\": {\n" +
-                                    "    \"state\": \"Buenos Aires\",\n" +
-                                    "    \"city\": \"Quilmes\",\n" +
-                                    "    \"locality\": \"Quilmes centro\",\n" +
-                                    "    \"street\": \"calle\",\n" +
-                                    "    \"number\": \"321\",\n" +
-                                    "    \"postalCode\": \"1878\"\n" +
-                                    "  }\n" +
+                                    "  \"address\": [\n" +
+                                    "    {\n" +
+                                    "      \"state\": \"Buenos Aires\",\n" +
+                                    "      \"city\": \"Avellaneda\",\n" +
+                                    "      \"street\": \"calle\",\n" +
+                                    "      \"number\": \"123\",\n" +
+                                    "      \"floor\": \"2\",\n" +
+                                    "      \"apartment\": \"B\"\n" +
+                                    "    },\n" +
+                                    "    {\n" +
+                                    "      \"state\": \"Buenos Aires\",\n" +
+                                    "      \"city\": \"Quilmes\",\n" +
+                                    "      \"street\": \"siempreviva\",\n" +
+                                    "      \"number\": \"321\"\n" +
+                                    "    }\n" +
+                                    "  ]\n" +
                                     "}"))
             ),
             responses = {
