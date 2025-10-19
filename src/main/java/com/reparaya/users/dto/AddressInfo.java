@@ -18,8 +18,6 @@ public class AddressInfo {
     @NotBlank(message = "La ciudad es obligatoria")
     private String city;
 
-    private String locality;
-
     @NotBlank(message = "La calle es obligatoria")
     private String street;
 
@@ -29,6 +27,4 @@ public class AddressInfo {
     private String floor;
 
     private String apartment;
-
-    private String postalCode;
 }

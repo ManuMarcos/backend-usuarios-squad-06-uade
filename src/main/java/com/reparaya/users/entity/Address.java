@@ -21,8 +21,6 @@ public class Address {
     @Column(nullable = false)
     private String city;
 
-    private String locality;
-
     @Column(nullable = false)
     private String street;
 
@@ -32,9 +30,6 @@ public class Address {
     private String floor;
 
     private String apartment;
-
-    @Column(name = "postal_code")
-    private String postalCode;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false,

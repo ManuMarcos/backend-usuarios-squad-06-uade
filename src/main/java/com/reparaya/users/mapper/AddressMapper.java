@@ -16,12 +16,10 @@ public class AddressMapper {
         return AddressInfo.builder()
                 .state(entity.getState())
                 .city(entity.getCity())
-                .locality(entity.getLocality())
                 .street(entity.getStreet())
                 .number(entity.getNumber())
                 .floor(entity.getFloor())
                 .apartment(entity.getApartment())
-                .postalCode(entity.getPostalCode())
                 .build();
     }
 
