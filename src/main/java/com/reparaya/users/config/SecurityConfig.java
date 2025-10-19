@@ -41,7 +41,8 @@ public class SecurityConfig {
                     "/webhook/**",
                     "/api/token/**"
                 ).permitAll()
-                .anyRequest().authenticated()
+                    .requestMatchers("/api/users/*/profile-image/presign").authenticated()
+                    .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
