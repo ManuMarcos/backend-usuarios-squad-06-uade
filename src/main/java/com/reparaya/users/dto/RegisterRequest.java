@@ -3,9 +3,14 @@ package com.reparaya.users.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Getter;
+import lombok.*;
 
-@Getter
+import java.util.List;
+
+@Builder
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class RegisterRequest {
     @NotBlank(message = "El email es obligatorio")
     @Email(message = "Formato de email inválido")
@@ -20,8 +25,7 @@ public class RegisterRequest {
     private String dni;
     @NotBlank(message = "El numero de celular/telefono es obligatorio")
     private String phoneNumber;
-    private AddressInfo primaryAddressInfo;
-    private AddressInfo secondaryAddressInfo;
+    private List<AddressInfo> address;
     @NotBlank(message = "El rol es obligatorio")
     private String role;
 }

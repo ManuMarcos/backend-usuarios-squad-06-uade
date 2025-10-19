@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -76,14 +77,7 @@ public class UserService {
             .registerOrigin(RegisterOriginEnum.WEB_USUARIOS.name())
             .build();
 
-        List<Address> addresses = new ArrayList<>();
-        addresses.add(mapAddress(request.getPrimaryAddressInfo(), newUser)); // siempre obligatoria
-
-        if (request.getSecondaryAddressInfo() != null) {
-            addresses.add(mapAddress(request.getSecondaryAddressInfo(), newUser));
-        }
-
-        newUser.setAddresses(addresses);
+        newUser.setAddresses(mapAddress(request.getAddress(), newUser));
 
         User savedUser = userRepository.save(newUser);
         log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
@@ -110,20 +104,15 @@ public class UserService {
         return savedUser;
     }
 
-    private Address mapAddress(AddressInfo dto, User user) {
-        if (dto == null) return null;
-
-        return Address.builder()
-                .state(dto.getState())
-                .city(dto.getCity())
-                .locality(dto.getLocality())
-                .street(dto.getStreet())
-                .number(dto.getNumber())
-                .floor(dto.getFloor())
-                .apartment(dto.getApartment())
-                .postalCode(dto.getPostalCode())
-                .user(user)
-                .build();
+    private List<Address> mapAddress(List<AddressInfo> addressList, User user) {
+        return addressList.stream().map(addr -> Address.builder()
+                .state(addr.getState())
+                .city(addr.getCity())
+                .street(addr.getStreet())
+                .number(addr.getNumber())
+                .floor(addr.getFloor() != null ? addr.getFloor() : null)
+                .apartment(addr.getApartment() != null ? addr.getApartment() : null)
+                .user(user).build()).toList();
     }
 
     private String normalizeRoleName(String raw) {
