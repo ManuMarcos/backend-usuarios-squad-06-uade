@@ -7,6 +7,7 @@ import com.reparaya.users.entity.IncomingEvent;
 import com.reparaya.users.external.repository.IncomingEventRepository;
 import com.reparaya.users.external.strategy.EventProcessStrategy;
 import com.reparaya.users.factory.EventProcessStrategyFactory;
+import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,7 @@ public class IncomingEventProcessor {
 
     private final IncomingEventRepository incomingEventRepository;
     private final EventProcessStrategyFactory eventFactory;
+    private final CorePublisherService corePublisherService;
 
     private boolean handleEvent(CoreMessage event) {
         EventProcessStrategy strategy = eventFactory.getStrategy(event);
@@ -28,9 +30,9 @@ public class IncomingEventProcessor {
     }
 
     public boolean processEventByStrategy(CoreMessage event) {
-        Optional<IncomingEvent> existingEvent = incomingEventRepository.findByMessageId(event.getMessageId());
+        corePublisherService.sendAckToCore(event.getMessageId()); // TODO: esta bien mandarlo aca?
 
-        // TODO: impacta que pueda que venga de nuevo con el mismo id pero diferente contenido? -> eso no deberia pasar, cada evento es unico...
+        Optional<IncomingEvent> existingEvent = incomingEventRepository.findByMessageId(event.getMessageId());
 
         if (existingEvent.isEmpty()) {
             log.info("Starting event processing for messageId: {}", event.getMessageId());
@@ -43,8 +45,7 @@ public class IncomingEventProcessor {
             if (!processed) {
                 return false;
             }
-            savedEvent.get().setProcessed(true);
-            incomingEventRepository.save(savedEvent.get());
+            saveEventProcessedTrue(savedEvent.get());
             return true;
         } else if (existingEvent.get().isProcessed()){
             log.info("Received duplicated event. Skipping processing for messageId: {}", event.getMessageId());
@@ -55,36 +56,47 @@ public class IncomingEventProcessor {
             if (!processed) {
                 return false;
             }
-            existingEvent.get().setProcessed(true);
-            incomingEventRepository.save(existingEvent.get());
+            saveEventProcessedTrue(existingEvent.get());
             return true;
         }
     }
 
+    private void saveEventProcessedTrue(IncomingEvent event) {
+        event.setProcessed(true);
+        incomingEventRepository.save(event);
+    }
+
     private Optional<IncomingEvent> saveIncomingEvent(CoreMessage event) {
-        ObjectMapper mapper = new ObjectMapper();
-        String stringPayload;
         try {
-            stringPayload = mapper.writeValueAsString(event.getPayload());
-        } catch (JsonProcessingException e) {
-            log.error("An error ocurred while processing payload as String for messageId: {}", event.getMessageId());
-            return Optional.empty();
-        }
-        try {
-            IncomingEvent incomingEvent = IncomingEvent.builder()
-                    .messageId(event.getMessageId())
-                    .source(event.getSource())
-                    .channel(event.getDestination().getChannel())
-                    .eventName(event.getDestination().getEventName())
-                    .timestamp(event.getTimestamp())
-                    .payload(stringPayload)
-                    .receivedAt(OffsetDateTime.now())
-                    .processed(false)
-                    .build();
+            IncomingEvent incomingEvent = mapCoreMessageToIncomingEvent(event);
             return Optional.of(incomingEventRepository.save(incomingEvent));
         } catch (Exception ex) {
             log.error("An error ocurred while mapping incoming event / saving event. MessageId: {}", event.getMessageId());
             return Optional.empty();
         }
     }
+
+    private IncomingEvent mapCoreMessageToIncomingEvent(CoreMessage message) throws JsonProcessingException {
+        return IncomingEvent.builder()
+                .messageId(message.getMessageId())
+                .source(message.getSource())
+                .channel(message.getDestination().getChannel())
+                .eventName(message.getDestination().getEventName())
+                .timestamp(message.getTimestamp())
+                .payload(getStringPayloadFromCoreMessage(message))
+                .receivedAt(OffsetDateTime.now())
+                .processed(false)
+                .build();
+    }
+
+    private String getStringPayloadFromCoreMessage(CoreMessage message) throws JsonProcessingException {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            return mapper.writeValueAsString(message.getPayload());
+        } catch (JsonProcessingException ex) {
+            log.error("An error ocurred while processing payload as String for messageId: {}", message.getMessageId());
+            throw ex;
+        }
+    }
+
 }

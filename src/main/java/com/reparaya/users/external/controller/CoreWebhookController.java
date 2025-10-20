@@ -19,17 +19,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class CoreWebhookController {
 
     private final IncomingEventProcessor incomingEventProcessor;
-    private final CorePublisherService corePublisherService;
 
     @PostMapping
     public ResponseEntity<String> handleEvent(@RequestBody CoreMessage message) {
         log.info("Event received {} from {} ", message.getDestination().getEventName(), message.getSource());
         try {
-            // TODO: chequear si esta forma de ack esta bien...
             boolean processed = incomingEventProcessor.processEventByStrategy(message);
-            corePublisherService.sendAckToCore(message.getMessageId());
             if (processed) {
-                // send event to core
                 return ResponseEntity.ok("Evento " + message.getMessageId() + " procesado de forma exitosa");
             }
         } catch (Exception ex) {

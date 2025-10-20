@@ -25,6 +25,7 @@ public class EventUserRegisterStrategy implements EventProcessStrategy {
             return true;
         } catch (Exception ex) {
             log.error("An error ocurred while processing user registration though event with messageId {} and error {}", event.getMessageId(), ex.getMessage());
+            corePublisherService.sendUserRejectedToCore(event, ex.getMessage());
             return false;
         }
     }
