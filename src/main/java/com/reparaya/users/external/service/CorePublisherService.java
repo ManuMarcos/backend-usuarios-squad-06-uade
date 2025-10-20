@@ -38,7 +38,7 @@ public class CorePublisherService {
         headers.add("x-api-key", API_KEY);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(Map.of("msgId", messageId, "subscriptionId", PRESTADORES_ALTA_SUBSCRIPTION_ID), headers);
-        log.info("Sending ACK for messageId {}", messageId);
+        log.info("Sending ACK to core for messageId: {}", messageId);
 
         // TODO: comentado por ahora. Ver que pasa con el subscription id.
 
@@ -71,10 +71,10 @@ public class CorePublisherService {
                 "payload", userData
         );
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        log.info("Sending user created event with messageId {}", messageId);
+        log.info("Sending user created event to core with messageId: {}", messageId);
 
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        log.info("Received user created response from core {} for messageId {}", response, messageId);
+        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        //log.info("Received user created response from core: {} for messageId: {}", response, messageId);
     }
 
     public void sendUserDeactivatedToCore(final String messageId) {
@@ -94,9 +94,7 @@ public class CorePublisherService {
         headers.add("x-api-key", API_KEY);
 
         Map<String, Object> payload = Map.of(
-                "message", "Usuario rechazado. Motivo: " + errorMessage,
-                "email", message.getPayload().get("email")
-        );
+                "message", "Usuario rechazado. Motivo: " + errorMessage);
 
         Map<String, Object> body = Map.of(
                 "messageId", messageId,
@@ -109,9 +107,9 @@ public class CorePublisherService {
                 "payload", payload
         );
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        log.info("Sending user rejected event with messageId {}", messageId);
+        log.info("Sending user rejected event to core with messageId: {}", messageId);
 
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        log.info("Received user rejected response from core {} for messageId {}", response, messageId);
+        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        //log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);
     }
 }
