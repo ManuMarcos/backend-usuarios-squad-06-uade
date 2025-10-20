@@ -18,13 +18,14 @@ public class EventUserRegisterStrategy implements EventProcessStrategy {
 
     @Override
     public boolean handle(CoreMessage event) {
+        log.info("Starting event user register strategy");
         RegisterRequest request = mapRegisterRequestFromEvent(event);
         try {
             RegisterResponse registerResponse = userService.registerUser(request);
             corePublisherService.sendUserCreatedToCore(registerResponse);
             return true;
         } catch (Exception ex) {
-            log.error("An error ocurred while processing user registration though event with messageId {} and error {}", event.getMessageId(), ex.getMessage());
+            log.error("An error ocurred while processing user registration though event with messageId: {} and error: {}", event.getMessageId(), ex.getMessage());
             corePublisherService.sendUserRejectedToCore(event, ex.getMessage());
             return false;
         }
@@ -35,7 +36,7 @@ public class EventUserRegisterStrategy implements EventProcessStrategy {
         try {
             return mapper.convertValue(event.getPayload(), RegisterRequest.class);
         } catch (Exception ex) {
-            log.error("An error ocurred while deserializing event {}. Error: {}", event.getMessageId(), ex.getMessage());
+            log.error("An error ocurred while deserializing event with messageId: {}. Error: {}", event.getMessageId(), ex.getMessage());
             throw ex;
         }
     }

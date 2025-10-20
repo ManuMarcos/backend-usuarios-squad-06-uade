@@ -7,7 +7,6 @@ import com.reparaya.users.entity.IncomingEvent;
 import com.reparaya.users.external.repository.IncomingEventRepository;
 import com.reparaya.users.external.strategy.EventProcessStrategy;
 import com.reparaya.users.factory.EventProcessStrategyFactory;
-import io.jsonwebtoken.lang.Strings;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,44 +23,59 @@ public class IncomingEventProcessor {
     private final EventProcessStrategyFactory eventFactory;
     private final CorePublisherService corePublisherService;
 
+    public boolean processEventByStrategy(CoreMessage event) {
+        corePublisherService.sendAckToCore(event.getMessageId()); // TODO: esta bien mandarlo aca?
+
+        Optional<IncomingEvent> existingEvent = incomingEventRepository.findByMessageId(event.getMessageId());
+        boolean isNewEvent = existingEvent.isEmpty();
+
+        if (isNewEvent) {
+            return caseReceivedNewEvent(event);
+        }
+
+        // TODO: check -> si llego aca deberia ser porque el ack no fue enviado en realidad?
+        // core reintanta el envio cuando no recibe ack
+        if (existingEvent.get().isProcessed()) { // el evento ya fue recibido y procesado en el pasado.
+            log.info("Received duplicated event. Skipping processing for messageId: {}", event.getMessageId());
+            return false;
+        } else {
+            return caseReceivedDuplicatedEventButNotProcessed(event, existingEvent.get());
+        }
+    }
+
+    private boolean caseReceivedNewEvent(CoreMessage event) {
+        log.info("Starting event processing for messageId: {}", event.getMessageId());
+        Optional<IncomingEvent> savedEvent = saveIncomingEvent(event);
+        if (savedEvent.isEmpty()) {
+            // TODO: aca deberia mandar usuario rechazado xq no llega a procesarlo ??
+            // TODO: consultar si usuario rechazado solo se envia cuando falla el registro o toda la logica de procesamiento de evento.
+            return false;
+        }
+        log.info("Saved incoming event for messageId: {}", event.getMessageId());
+        boolean processed = handleEvent(event);
+        if (!processed) {
+            return false;
+        }
+        updateEventStatusToProcessed(savedEvent.get());
+        return true;
+    }
+
+    private boolean caseReceivedDuplicatedEventButNotProcessed(CoreMessage event, IncomingEvent existingEvent) {
+        log.info("Received duplicated event but never processed. MessageId: {}", event.getMessageId());
+        boolean processed = handleEvent(event);
+        if (!processed) {
+            return false;
+        }
+        updateEventStatusToProcessed(existingEvent);
+        return true;
+    }
+
     private boolean handleEvent(CoreMessage event) {
         EventProcessStrategy strategy = eventFactory.getStrategy(event);
         return strategy.handle(event);
     }
 
-    public boolean processEventByStrategy(CoreMessage event) {
-        corePublisherService.sendAckToCore(event.getMessageId()); // TODO: esta bien mandarlo aca?
-
-        Optional<IncomingEvent> existingEvent = incomingEventRepository.findByMessageId(event.getMessageId());
-
-        if (existingEvent.isEmpty()) {
-            log.info("Starting event processing for messageId: {}", event.getMessageId());
-            Optional<IncomingEvent> savedEvent = saveIncomingEvent(event);
-            if (savedEvent.isEmpty()) {
-                return false;
-            }
-            log.info("Saved incoming event for messageId: {}", event.getMessageId());
-            boolean processed = handleEvent(event);
-            if (!processed) {
-                return false;
-            }
-            saveEventProcessedTrue(savedEvent.get());
-            return true;
-        } else if (existingEvent.get().isProcessed()){
-            log.info("Received duplicated event. Skipping processing for messageId: {}", event.getMessageId());
-            return false;
-        } else { // TODO: check
-            log.info("Received duplicated event but not processed for messageId: {}", event.getMessageId());
-            boolean processed = handleEvent(event);
-            if (!processed) {
-                return false;
-            }
-            saveEventProcessedTrue(existingEvent.get());
-            return true;
-        }
-    }
-
-    private void saveEventProcessedTrue(IncomingEvent event) {
+    private void updateEventStatusToProcessed(IncomingEvent event) {
         event.setProcessed(true);
         incomingEventRepository.save(event);
     }
