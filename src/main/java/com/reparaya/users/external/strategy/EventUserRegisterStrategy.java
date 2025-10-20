@@ -21,8 +21,7 @@ public class EventUserRegisterStrategy implements EventProcessStrategy {
         log.info("Starting event user register strategy");
         RegisterRequest request = mapRegisterRequestFromEvent(event);
         try {
-            RegisterResponse registerResponse = userService.registerUser(request);
-            corePublisherService.sendUserCreatedToCore(registerResponse);
+            userService.registerUser(request);
             return true;
         } catch (Exception ex) {
             log.error("An error ocurred while processing user registration though event with messageId: {} and error: {}", event.getMessageId(), ex.getMessage());
