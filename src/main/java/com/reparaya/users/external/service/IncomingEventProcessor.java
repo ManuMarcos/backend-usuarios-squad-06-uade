@@ -50,6 +50,7 @@ public class IncomingEventProcessor {
             log.info("Received duplicated event. Skipping processing for messageId: {}", event.getMessageId());
             return false;
         } else { // TODO: check
+            log.info("Received duplicated event but not processed for messageId: {}", event.getMessageId());
             boolean processed = handleEvent(event);
             if (!processed) {
                 return false;
