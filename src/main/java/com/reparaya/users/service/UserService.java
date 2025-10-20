@@ -3,6 +3,7 @@ package com.reparaya.users.service;
 import com.reparaya.users.dto.*;
 import com.reparaya.users.entity.Address;
 import com.reparaya.users.entity.User;
+import com.reparaya.users.external.service.CorePublisherService;
 import com.reparaya.users.mapper.AddressMapper;
 import com.reparaya.users.repository.UserRepository;
 import com.reparaya.users.util.JwtUtil;
@@ -29,6 +30,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final LdapUserService ldapUserService;
     private final JwtUtil jwtUtil;
+    private final CorePublisherService corePublisherService;
 
     public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
     public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
@@ -125,11 +127,15 @@ public class UserService {
 
     public RegisterResponse registerUser(RegisterRequest request) {
         User savedUser = createUser(request);
-        return new RegisterResponse(
+
+        RegisterResponse response = new RegisterResponse(
                 SUCCESS_REGISTER,
-            savedUser.getEmail(),
-            savedUser.getRole().getName()
-        );
+                savedUser.getEmail(),
+                savedUser.getRole().getName());
+
+        corePublisherService.sendUserCreatedToCore(response);
+        
+        return response;
     }
 
     public LoginResponse authenticateUser(LoginRequest request) {

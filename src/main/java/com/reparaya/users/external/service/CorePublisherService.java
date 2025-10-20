@@ -73,8 +73,8 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user created event to core with messageId: {}", messageId);
 
-        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        //log.info("Received user created response from core: {} for messageId: {}", response, messageId);
+        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        log.info("Received user created response from core: {} for messageId: {}", response, messageId);
     }
 
     public void sendUserDeactivatedToCore(final String messageId) {
