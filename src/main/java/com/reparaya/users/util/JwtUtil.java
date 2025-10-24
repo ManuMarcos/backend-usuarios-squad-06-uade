@@ -31,16 +31,15 @@ public class JwtUtil {
 
     public String generateToken(User user, Map<String, List<String>> permissions) {
         Map<String, Object> claims = new HashMap<>();
-        claims.put("email", user.getEmail());
-        claims.put("role", user.getRole());
+        claims.put("role", user.getRole().getName());
         claims.put("resource_access", permissions);
-        return createToken(claims, user.getUserId());
+        return createToken(claims, user.getEmail());
     }
 
-    private String createToken(Map<String, Object> claims, final Long subject) {
+    private String createToken(Map<String, Object> claims, final String subject) {
         return Jwts.builder()
                 .claims(claims)
-                .subject(Long.toString(subject))
+                .subject(subject)
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSigningKey())

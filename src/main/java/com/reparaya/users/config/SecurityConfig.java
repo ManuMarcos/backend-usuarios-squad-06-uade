@@ -31,16 +31,19 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers(
-                    "/api/users/register",
-                    "/api/users/login",
-                    "/api/users/*/reset-password",
-                    "/api/users/**",
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/webhook/**",
-                    "/api/token/**"
+                        "/api/users/register",
+                        "/api/users/login",
+                        "/api/users/*/reset-password",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/webhook/**",
+                        "/api/token/validate",
+                        "/api/users/**"
                 ).permitAll()
+                //.requestMatchers("/api/users/*/permissions/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
+                //.requestMatchers("/api/users/*/assign-role").hasRole("ADMIN")
+                //.requestMatchers("/api/users").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

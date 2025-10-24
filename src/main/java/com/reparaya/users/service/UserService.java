@@ -269,6 +269,7 @@ public class UserService {
         );
     }
 
+
     public boolean validateTokenAndUser(String token, String email) {
         return jwtUtil.validateToken(token, email);
     }
