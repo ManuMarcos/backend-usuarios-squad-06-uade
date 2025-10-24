@@ -1,7 +1,6 @@
 package com.reparaya.users.external.controller;
 
 import com.reparaya.users.dto.CoreMessage;
-import com.reparaya.users.external.service.CorePublisherService;
 import com.reparaya.users.external.service.IncomingEventProcessor;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +21,7 @@ public class CoreWebhookController {
 
     @PostMapping
     public ResponseEntity<String> handleEvent(@RequestBody CoreMessage message) {
-        log.info("Event received {} from {} ", message.getDestination().getEventName(), message.getSource());
+        log.info("Event received with topic {} and eventName {} ", message.getDestination().getTopic(), message.getDestination().getEventName());
         try {
             boolean processed = incomingEventProcessor.processEventByStrategy(message);
             if (processed) {

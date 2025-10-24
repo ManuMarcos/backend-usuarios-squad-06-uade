@@ -24,7 +24,6 @@ public class IncomingEventProcessor {
     private final CorePublisherService corePublisherService;
 
     public boolean processEventByStrategy(CoreMessage event) {
-        corePublisherService.sendAckToCore(event.getMessageId()); // TODO: esta bien mandarlo aca?
 
         Optional<IncomingEvent> existingEvent = incomingEventRepository.findByMessageId(event.getMessageId());
         boolean isNewEvent = existingEvent.isEmpty();
@@ -33,8 +32,6 @@ public class IncomingEventProcessor {
             return caseReceivedNewEvent(event);
         }
 
-        // TODO: check -> si llego aca deberia ser porque el ack no fue enviado en realidad?
-        // core reintanta el envio cuando no recibe ack
         if (existingEvent.get().isProcessed()) { // el evento ya fue recibido y procesado en el pasado.
             log.info("Received duplicated event. Skipping processing for messageId: {}", event.getMessageId());
             return false;
@@ -93,8 +90,7 @@ public class IncomingEventProcessor {
     private IncomingEvent mapCoreMessageToIncomingEvent(CoreMessage message) throws JsonProcessingException {
         return IncomingEvent.builder()
                 .messageId(message.getMessageId())
-                .source(message.getSource())
-                .channel(message.getDestination().getChannel())
+                .topic(message.getDestination().getTopic())
                 .eventName(message.getDestination().getEventName())
                 .timestamp(message.getTimestamp())
                 .payload(getStringPayloadFromCoreMessage(message))

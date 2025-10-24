@@ -16,10 +16,9 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class EventProcessStrategyFactory {
 
-    public static final String ALTA_PRESTADOR_CATALOGO = "alta_prestador";
-    public static final String ALTA_USUARIO_BUSQUEDAS = "solicitado";
-    public static final String MODIFICACION_PRESTADOR_CATALOGO = "modificacion_prestador";
-    public static final String BAJA_PRESTADOR_CATALOGO = "baja_prestador";
+    public static final String ALTA_PRESTADOR_CATALOGO = "alta";
+    public static final String MODIFICACION_PRESTADOR_CATALOGO = "modificacion";
+    public static final String BAJA_PRESTADOR_CATALOGO = "baja";
 
     private final UserService userService;
     private final CorePublisherService corePublisherService;
@@ -30,7 +29,7 @@ public class EventProcessStrategyFactory {
         log.info("Getting strategy for eventName: {}", eventName);
 
         return switch (eventName) {
-            case ALTA_PRESTADOR_CATALOGO, ALTA_USUARIO_BUSQUEDAS -> new EventUserRegisterStrategy(userService, corePublisherService);
+            case ALTA_PRESTADOR_CATALOGO -> new EventUserRegisterStrategy(userService, corePublisherService);
             case MODIFICACION_PRESTADOR_CATALOGO -> new EventUserUpdateStrategy(userService);
             case BAJA_PRESTADOR_CATALOGO -> new EventUserDeactivateStrategy(userService);
             default -> throw new IllegalStateException("The eventName: " + eventName + " is not recognized.");

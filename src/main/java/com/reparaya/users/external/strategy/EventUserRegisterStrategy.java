@@ -8,6 +8,14 @@ import com.reparaya.users.external.service.CorePublisherService;
 import com.reparaya.users.service.UserService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.reparaya.users.mapper.EventMapper.mapRegisterRequestFromEvent;
+import static com.reparaya.users.util.Validators.validateRequest;
 
 @Slf4j
 @AllArgsConstructor
@@ -21,6 +29,7 @@ public class EventUserRegisterStrategy implements EventProcessStrategy {
         log.info("Starting event user register strategy");
         RegisterRequest request = mapRegisterRequestFromEvent(event);
         try {
+            validateRequest(request);
             userService.registerUser(request);
             return true;
         } catch (Exception ex) {
@@ -30,13 +39,4 @@ public class EventUserRegisterStrategy implements EventProcessStrategy {
         }
     }
 
-    private RegisterRequest mapRegisterRequestFromEvent(CoreMessage event) {
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            return mapper.convertValue(event.getPayload(), RegisterRequest.class);
-        } catch (Exception ex) {
-            log.error("An error ocurred while deserializing event with messageId: {}. Error: {}", event.getMessageId(), ex.getMessage());
-            throw ex;
-        }
-    }
 }
