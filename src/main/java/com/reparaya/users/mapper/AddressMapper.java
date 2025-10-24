@@ -2,6 +2,7 @@ package com.reparaya.users.mapper;
 
 import com.reparaya.users.dto.AddressInfo;
 import com.reparaya.users.entity.Address;
+import com.reparaya.users.entity.User;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,5 +32,18 @@ public class AddressMapper {
         return entities.stream()
                 .map(AddressMapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    public static List<Address> mapAddressInfoListToAddressList(List<AddressInfo> addressList, User user) {
+        return addressList.stream().map(addr -> Address.builder()
+                .state(addr.getState())
+                .city(addr.getCity())
+                .street(addr.getStreet())
+                .number(addr.getNumber())
+                .floor(addr.getFloor() != null ? addr.getFloor() : null)
+                .apartment(addr.getApartment() != null ? addr.getApartment() : null)
+                .user(user)
+                .build()
+                ).toList();
     }
 }

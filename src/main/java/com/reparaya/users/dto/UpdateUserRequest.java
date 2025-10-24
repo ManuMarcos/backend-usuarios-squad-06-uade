@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.Email;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class UpdateUserRequest {
@@ -13,5 +15,5 @@ public class UpdateUserRequest {
     private String lastName;
     private String dni;
     private String phoneNumber;
-    private String address;
+    private List<AddressInfo> address;
 }

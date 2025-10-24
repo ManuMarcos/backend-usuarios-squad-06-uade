@@ -184,7 +184,7 @@ public class UserController {
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = RegisterRequest.class),
+                            schema = @Schema(implementation = UpdateUserRequest.class),
                             examples = @ExampleObject(value = "{\n  \"firstName\": \"Jane\",\n  \"phoneNumber\": \"+54 11 5555 6666\"\n}"))
             ),
             responses = {
@@ -197,15 +197,16 @@ public class UserController {
     public ResponseEntity<String> updateUser(
             @PathVariable Long userId,
             @RequestBody @Valid UpdateUserRequest request) {
-        try {
-            return ResponseEntity.ok(userService.updateUserPartially(userId, request));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UPDATE_USER_ERROR + e.getMessage());
-        }
+//        try {
+//            return ResponseEntity.ok(userService.updateUserPartially(userId, request));
+//        } catch (RuntimeException e) {
+//            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+//                    .body(e.getMessage());
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(UPDATE_USER_ERROR + e.getMessage());
+//        }
+        return ResponseEntity.ok(userService.updateUserPartially(userId, request));
     }
 
     @Operation(
