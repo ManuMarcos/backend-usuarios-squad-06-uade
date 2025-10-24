@@ -24,6 +24,18 @@ public class AddressMapper {
                 .build();
     }
 
+    public static List<Address> mapAddressInfoListToAddressList(List<AddressInfo> addressList, User user) {
+        return addressList.stream().map(addr -> Address.builder()
+                .state(addr.getState())
+                .city(addr.getCity())
+                .street(addr.getStreet())
+                .number(addr.getNumber())
+                .floor(addr.getFloor() != null ? addr.getFloor() : null)
+                .apartment(addr.getApartment() != null ? addr.getApartment() : null)
+                .user(user)
+                .build()).toList();
+    }
+
     public static List<AddressInfo> toDtoList(List<Address> entities) {
         if (entities == null) {
             return List.of();

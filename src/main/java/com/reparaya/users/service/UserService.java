@@ -21,6 +21,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map;
 import java.util.Optional;
 
 import static com.reparaya.users.mapper.AddressMapper.mapAddressInfoListToAddressList;
@@ -33,6 +35,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final LdapUserService ldapUserService;
+    private final PermissionService permissionService;
     private final JwtUtil jwtUtil;
     private final CorePublisherService corePublisherService;
 
@@ -244,8 +247,12 @@ public class UserService {
             );
         }
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName());
-        
+        // "search": ["permission_1", "permission_2", ...],
+        // "catalog": ["permission_3", "permission_4", ...], ...
+        Map<String, List<String>> permissionsPerModule = permissionService.getPermissionsForUser(user.getUserId());
+
+        String token = jwtUtil.generateToken(user, permissionsPerModule);
+
         return new LoginResponse(
             token,
             UserInfoLoginResponse.builder()
