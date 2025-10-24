@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static com.reparaya.users.mapper.AddressMapper.mapAddressInfoListToAddressList;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -96,7 +98,7 @@ public class UserService {
             .registerOrigin(RegisterOriginEnum.WEB_USUARIOS.name())
             .build();
 
-        newUser.setAddresses(mapAddress(request.getAddress(), newUser));
+        newUser.setAddresses(mapAddressInfoListToAddressList(request.getAddress(), newUser));
 
         User savedUser = userRepository.save(newUser);
         log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
@@ -137,17 +139,6 @@ public class UserService {
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();
-    }
-
-    private List<Address> mapAddress(List<AddressInfo> addressList, User user) {
-        return addressList.stream().map(addr -> Address.builder()
-                .state(addr.getState())
-                .city(addr.getCity())
-                .street(addr.getStreet())
-                .number(addr.getNumber())
-                .floor(addr.getFloor() != null ? addr.getFloor() : null)
-                .apartment(addr.getApartment() != null ? addr.getApartment() : null)
-                .user(user).build()).toList();
     }
 
     private String normalizeRoleName(String raw) {
@@ -243,27 +234,40 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
 
-        String email = user.getEmail();
+        String oldEmail = user.getEmail();
 
-        if (request.getEmail() != null) user.setEmail(request.getEmail());
+        if (request.getEmail() != null) {
+            if (!oldEmail.equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+                throw new RuntimeException("El email ya existe");
+            }
+            user.setEmail(request.getEmail());
+        }
         if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
         if (request.getLastName() != null) user.setLastName(request.getLastName());
         if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
         if (request.getDni() != null) user.setDni(request.getDni());
 
+        if (request.getAddress() != null) {
+            List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
+            // mantener la colección gestionada por JPA
+            user.getAddresses().clear();
+            user.getAddresses().addAll(newAddresses);
+        }
+
         user.setUpdatedAt(LocalDateTime.now());
         User updatedUser = userRepository.save(user);
 
-        log.info("Usuario parcialmente actualizado: {}", updatedUser.getEmail());
+        log.info("Partially updated user: {}", updatedUser.getEmail());
 
-        boolean ldapUpdated = ldapUserService.updateUserInLdap(email, updatedUser);
+        boolean ldapUpdated = ldapUserService.updateUserInLdap(oldEmail, updatedUser);
         if (!ldapUpdated) {
-            log.error("No se pudo actualizar el usuario en LDAP: {}", email);
+            log.error("Could not update user: {} in ldap", oldEmail);
             throw new RuntimeException("Error al actualizar usuario en LDAP");
         }
 
         return SUCCESS_USER_UPDATE;
     }
+
 
     public void changeUserIsActive(Long userId, UserChangeActiveRequest request) {
         User user = userRepository.findById(userId)
