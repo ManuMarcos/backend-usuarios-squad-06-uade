@@ -1,7 +1,5 @@
 package com.reparaya.users.external.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reparaya.users.dto.CoreMessage;
 import com.reparaya.users.dto.RegisterResponse;
 import lombok.RequiredArgsConstructor;
@@ -23,28 +21,8 @@ public class CorePublisherService {
     // TODO: store api key in env
     public static final String API_KEY = "ch_9aa39636744843d880a69e45cd08f1ab";
 
-    // TODO: manejar subscription id por cada topico
-    private final String PRESTADORES_ALTA_SUBSCRIPTION_ID = "ce687bc8-7b6b-4a83-a34c-94c31114476e";
-
-    private final String CORE_ACK_URL = "https://nonprodapi.uade-corehub.com/messages/";
     private final String CORE_EVENT_PUBLISH_URL = "https://nonprodapi.uade-corehub.com/publish";
 
-    public void sendAckToCore(final String messageId) {
-        RestTemplate rt = new RestTemplate();
-        String url = CORE_ACK_URL + messageId + "/ack";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("x-api-key", API_KEY);
-
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(Map.of("msgId", messageId, "subscriptionId", PRESTADORES_ALTA_SUBSCRIPTION_ID), headers);
-        log.info("Sending ACK to core for messageId: {}", messageId);
-
-        // TODO: comentado por ahora. Ver que pasa con el subscription id.
-
-        //String response = rt.postForObject(url, entity, String.class);
-        //log.info("Received ACK response {} from core for messageId {}", response, messageId);
-    }
 
     public void sendUserCreatedToCore(RegisterResponse registerResponse) {
         UUID messageId = UUID.randomUUID();
@@ -63,9 +41,8 @@ public class CorePublisherService {
         Map<String, Object> body = Map.of(
                 "messageId", messageId,
                 "timestamp", OffsetDateTime.now().toString(),
-                "source", "users",
                 "destination", Map.of(
-                        "channel", "users.user.user_created",
+                        "topic", "user",
                         "eventName", "user_created"
                 ),
                 "payload", userData
@@ -73,8 +50,9 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user created event to core with messageId: {}", messageId);
 
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        log.info("Received user created response from core: {} for messageId: {}", response, messageId);
+        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        //log.info("Received user created response from core: {} for messageId: {}", response, messageId);
+
     }
 
     public void sendUserDeactivatedToCore(final String messageId) {
@@ -99,15 +77,14 @@ public class CorePublisherService {
         Map<String, Object> body = Map.of(
                 "messageId", messageId,
                 "timestamp", OffsetDateTime.now().toString(),
-                "source", "users",
                 "destination", Map.of(
-                        "channel", "users.user.user_rejected",
+                        "topic", "user",
                         "eventName", "user_rejected"
                 ),
                 "payload", payload
         );
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        log.info("Sending user rejected event to core with messageId: {}", messageId);
+        log.info("Sending user rejected event to core with messageId: {} and reason: {} ", messageId, errorMessage);
 
         //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
         //log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);

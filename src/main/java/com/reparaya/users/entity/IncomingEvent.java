@@ -28,11 +28,8 @@ public class IncomingEvent {
     @Column(name = "timestamp", nullable = false)
     private OffsetDateTime timestamp;
 
-    @Column(name = "source", nullable = false)
-    private String source;
-
-    @Column(name = "channel", nullable = false)
-    private String channel;
+    @Column(name = "topic", nullable = false)
+    private String topic;
 
     @Column(name = "event_name", nullable = false)
     private String eventName;

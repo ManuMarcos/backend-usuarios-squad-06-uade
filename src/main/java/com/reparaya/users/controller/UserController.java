@@ -3,6 +3,7 @@ package com.reparaya.users.controller;
 import java.util.List;
 import java.util.Optional;
 
+import com.reparaya.users.dto.*;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import org.springframework.http.HttpStatus;
@@ -15,13 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.reparaya.users.dto.LoginRequest;
-import com.reparaya.users.dto.LoginResponse;
-import com.reparaya.users.dto.RegisterRequest;
-import com.reparaya.users.dto.RegisterResponse;
-import com.reparaya.users.dto.ResetPasswordRequest;
-import com.reparaya.users.dto.UpdateUserRequest;
-import com.reparaya.users.dto.UserChangeActiveRequest;
 import com.reparaya.users.entity.User;
 import com.reparaya.users.service.UserService;
 
@@ -49,12 +43,12 @@ public class UserController {
     responses = {
         @ApiResponse(responseCode = "200", description = "OK",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = com.reparaya.users.entity.User.class)))
+                schema = @Schema(implementation = com.reparaya.users.dto.UserDto.class)))
         }
     )
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
+    public ResponseEntity<List<UserDto>> getAllUsers() {
+        List<UserDto> users = userService.getAllUsersDto();
         return ResponseEntity.ok(users);
     }
 
@@ -65,15 +59,13 @@ public class UserController {
     },
     responses = {
         @ApiResponse(responseCode = "200", description = "OK",
-            content = @Content(schema = @Schema(implementation = com.reparaya.users.entity.User.class))),
+            content = @Content(schema = @Schema(implementation = com.reparaya.users.dto.UserDto.class))),
         @ApiResponse(responseCode = "404", description = "No encontrado")
         }   
     )
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        Optional<User> user = userService.getUserById(id);
-        return user.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserDtoById(id));
     }
 
     @Operation(

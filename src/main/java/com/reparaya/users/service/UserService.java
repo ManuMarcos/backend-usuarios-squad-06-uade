@@ -10,16 +10,16 @@ import com.reparaya.users.util.JwtUtil;
 import com.reparaya.users.util.RegisterOriginEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.reparaya.users.entity.Role;
 import com.reparaya.users.repository.RoleRepository;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -44,10 +44,27 @@ public class UserService {
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
+
+    public List<UserDto> getAllUsersDto() {
+        List<User> users = getAllUsers();
+        if (!users.isEmpty()) {
+            return users.stream().map(u -> getUserDtoById(u.getUserId())).toList();
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No registered users found.");
+    }
     
     @Transactional(readOnly = true)
-    public Optional<User> getUserById(Long id) {
+    public Optional<User> getUserEntityById(Long id) {
         return userRepository.findById(id);
+    }
+
+    public UserDto getUserDtoById(Long id) {
+        Optional<User> userOpt = getUserEntityById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            return mapUserToDto(user);
+        }
+        throw new RuntimeException("User " + id + " not found");
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +123,22 @@ public class UserService {
         return savedUser;
     }
 
+    private UserDto mapUserToDto(User user) {
+        return UserDto.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .role(user.getRole().getName())
+                .active(user.getActive())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .phoneNumber(user.getPhoneNumber())
+                .dni(user.getDni())
+                .addresses(user.getAddresses().stream().map(AddressMapper::toDto).toList())
+                .createdAt(user.getCreatedAt())
+                .updatedAt(user.getUpdatedAt())
+                .build();
+    }
+
     private List<Address> mapAddress(List<AddressInfo> addressList, User user) {
         return addressList.stream().map(addr -> Address.builder()
                 .state(addr.getState())
@@ -126,6 +159,7 @@ public class UserService {
 
 
     public RegisterResponse registerUser(RegisterRequest request) {
+
         User savedUser = createUser(request);
 
         RegisterResponse response = new RegisterResponse(
@@ -137,6 +171,7 @@ public class UserService {
         
         return response;
     }
+
 
     public LoginResponse authenticateUser(LoginRequest request) {
         boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail(), request.getPassword());
@@ -188,7 +223,7 @@ public class UserService {
 
     @Transactional
     public String resetPassword(Long userId, String newPassword) {
-        Optional<User> optUser = getUserById(userId);
+        Optional<User> optUser = getUserEntityById(userId);
 
         if (optUser.isEmpty()) {
             throw new RuntimeException("El usuario con id: " + userId + " no existe.");

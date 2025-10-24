@@ -60,7 +60,6 @@ public class LdapUserService {
             log.info("Usuario encontrado en LDAP: {}", email);
             return true;
         } catch (Exception e) {
-            log.error("Error buscando usuario en LDAP: {} - {}", email, e.getMessage());
             return false;
         }
     }
