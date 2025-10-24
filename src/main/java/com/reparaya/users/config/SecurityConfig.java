@@ -38,12 +38,17 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/webhook/**",
-                        "/api/token/validate",
-                        "/api/users/**"
+                        "/api/token/validate"
                 ).permitAll()
-                //.requestMatchers("/api/users/*/permissions/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
-                //.requestMatchers("/api/users/*/assign-role").hasRole("ADMIN")
-                //.requestMatchers("/api/users").hasRole("ADMIN")
+                // Endpoints de permisos - ver permisos (todos los roles)
+                .requestMatchers("/api/permissions/user/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
+                .requestMatchers("/api/permissions/all", "/api/permissions/module/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
+                // Endpoints de permisos - gestión (solo ADMIN)
+                .requestMatchers("/api/permissions/user/*/add", "/api/permissions/user/*/remove", "/api/permissions/user/*/sync").hasRole("ADMIN")
+                // Endpoints de usuarios - gestión (solo ADMIN)
+                .requestMatchers("/api/users").hasRole("ADMIN")
+                .requestMatchers("/api/users/*/permissions/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
+                .requestMatchers("/api/users/*/assign-role").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
