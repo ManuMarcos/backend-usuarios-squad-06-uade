@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,8 +35,9 @@ public class CorePublisherService {
 
         Map<String, Object> userData = Map.of(
                 "message", registerResponse.getMessage(),
-                "email", registerResponse.getEmail(),
-                "role", registerResponse.getRole()
+                "user", registerResponse.getUser(),
+                "zones", registerResponse.getZones() != null ? registerResponse.getZones() : Collections.emptyList(),
+                "skills", registerResponse.getSkills() != null ? registerResponse.getSkills() : Collections.emptyList()
         );
 
         Map<String, Object> body = Map.of(
@@ -50,8 +52,8 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user created event to core with messageId: {}", messageId);
 
-        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        //log.info("Received user created response from core: {} for messageId: {}", response, messageId);
+        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        log.info("Received user created response from core: {} for messageId: {}", response, messageId);
 
     }
 
@@ -86,7 +88,7 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user rejected event to core with messageId: {} and reason: {} ", messageId, errorMessage);
 
-        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        //log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);
+        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);
     }
 }
