@@ -60,7 +60,7 @@ public class EventMapper {
             String city = String.valueOf(payload.get("ciudad"));
             String street = String.valueOf(payload.get("calle"));
             String number = String.valueOf(payload.get("numero"));
-            String floor = payload.get("piso") != null ? String.valueOf(payload.get("floor")) : null;
+            String floor = payload.get("piso") != null ? String.valueOf(payload.get("piso")) : null;
             String apartment = payload.get("departamento") != null ? String.valueOf(payload.get("departamento")) : null;
 
             List<Object> zones = new ArrayList<>();
