@@ -240,5 +240,6 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
         user.setActive(request.isActive());
         user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
     }
 }
