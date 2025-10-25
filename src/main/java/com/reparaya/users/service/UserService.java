@@ -175,15 +175,18 @@ public class UserService {
 
         corePublisherService.sendUserCreatedToCore(response);
 
-        //activateUser(savedUser);
+        activateUser(savedUser.getUserId());
 
         return response;
     }
 
-    private void activateUser(User user) {
+    private void activateUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
         user.setActive(true);
         userRepository.save(user);
     }
+
 
     public RegisterResponse registerUser(RegisterRequest request) {
 
