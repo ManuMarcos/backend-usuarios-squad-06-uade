@@ -120,6 +120,67 @@ public class LdapUserService {
             return false;
         }
     }
+    public boolean updateUserInLdapWithNewPwd(String oldEmail, User user, String password) {
+        try {
+            // DN viejo y nuevo (LdapNameBuilder escapa caracteres especiales)
+            LdapName oldDn = LdapNameBuilder.newInstance()
+                    .add("ou", "users")
+                    .add("uid", oldEmail)
+                    .build();
+
+            LdapName newDn = LdapNameBuilder.newInstance()
+                    .add("ou", "users")
+                    .add("uid", user.getEmail())
+                    .build();
+
+            // 1) comprobar que la entrada vieja existe
+            if (!userExistsInLdap(oldEmail)) {
+                log.warn("No se puede actualizar: usuario no existe en LDAP: {}", oldEmail);
+                return false;
+            }
+
+            // 2) si el nuevo DN ya existe, abortar (evitar sobrescribir)
+            if (!oldDn.equals(newDn) && userExistsInLdap(user.getEmail())) {
+                log.warn("No se puede renombrar: ya existe una entrada con el nuevo uid: {}", user.getEmail());
+                return false;
+            }
+
+            // 3) si el uid cambió, renombrar la entrada (esto cambia el RDN)
+            if (!oldDn.equals(newDn)) {
+                try {
+                    ldapTemplate.rename(oldDn, newDn);
+                    log.info("LDAP: rename OK {} -> {}", oldEmail, user.getEmail());
+                } catch (Exception ex) {
+                    log.error("LDAP rename failed from {} to {}: {}", oldEmail, user.getEmail(), ex.getMessage(), ex);
+                    return false;
+                }
+            }
+
+            LdapName targetDn = (!oldDn.equals(newDn)) ? newDn : oldDn;
+
+            ModificationItem[] mods = new ModificationItem[]{
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("cn", user.getFirstName() + " " + user.getLastName())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("sn", user.getLastName())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("mail", user.getEmail())),
+                    new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
+                            new BasicAttribute("userPassword", password))
+            };
+
+
+            ldapTemplate.modifyAttributes(targetDn, mods);
+            log.info("Usuario actualizado en LDAP: {}", user.getEmail());
+            return true;
+
+        } catch (Exception e) {
+            log.error("Error al actualizar usuario en LDAP (oldEmail={}): {}", oldEmail, e.getMessage(), e);
+            return false;
+        }
+
+    }
+
     public boolean updateUserInLdap(String oldEmail, User user) {
         try {
             // DN viejo y nuevo (LdapNameBuilder escapa caracteres especiales)
@@ -152,7 +213,6 @@ public class LdapUserService {
                     log.info("LDAP: rename OK {} -> {}", oldEmail, user.getEmail());
                 } catch (Exception ex) {
                     log.error("LDAP rename failed from {} to {}: {}", oldEmail, user.getEmail(), ex.getMessage(), ex);
-                    // fallback: podrías intentar crear nueva entrada y borrar la vieja, o reintentar más tarde
                     return false;
                 }
             }
@@ -170,6 +230,7 @@ public class LdapUserService {
                     new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
                             new BasicAttribute("description", user.getRole() != null ? user.getRole().getName() : ""))
             };
+
 
             ldapTemplate.modifyAttributes(targetDn, mods);
             log.info("Usuario actualizado en LDAP: {}", user.getEmail());

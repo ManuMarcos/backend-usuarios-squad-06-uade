@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class EventProcessStrategyFactory {
 
     public static final String ALTA_PRESTADOR_CATALOGO = "alta";
+    public static final String ALTA_USUARIO_BUSQUEDA = "solicitado";
     public static final String MODIFICACION_PRESTADOR_CATALOGO = "modificacion";
     public static final String BAJA_PRESTADOR_CATALOGO = "baja";
 
@@ -29,9 +30,9 @@ public class EventProcessStrategyFactory {
         log.info("Getting strategy for eventName: {}", eventName);
 
         return switch (eventName) {
-            case ALTA_PRESTADOR_CATALOGO -> new EventUserRegisterStrategy(userService, corePublisherService);
-            case MODIFICACION_PRESTADOR_CATALOGO -> new EventUserUpdateStrategy(userService);
-            case BAJA_PRESTADOR_CATALOGO -> new EventUserDeactivateStrategy(userService);
+            case ALTA_PRESTADOR_CATALOGO, ALTA_USUARIO_BUSQUEDA -> new EventUserRegisterStrategy(userService, corePublisherService);
+            //case MODIFICACION_PRESTADOR_CATALOGO -> new EventUserUpdateStrategy(userService);
+            //case BAJA_PRESTADOR_CATALOGO -> new EventUserDeactivateStrategy(userService);
             default -> throw new IllegalStateException("The eventName: " + eventName + " is not recognized.");
         };
     }

@@ -42,7 +42,7 @@ public class User {
     @JsonManagedReference
     private List<Address> addresses = new ArrayList<>();
 
-    @Column
+    @Column(unique = true)
     private String dni;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
