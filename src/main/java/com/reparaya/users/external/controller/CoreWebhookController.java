@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/webhook/core-usuarios")
+@RequestMapping("/webhook/usuarios")
 @Slf4j
 @RequiredArgsConstructor
 public class CoreWebhookController {
