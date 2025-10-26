@@ -1,5 +1,6 @@
 package com.reparaya.users.external.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reparaya.users.dto.CoreMessage;
 import com.reparaya.users.dto.RegisterResponse;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.OffsetDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -33,12 +35,15 @@ public class CorePublisherService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.add("x-api-key", API_KEY);
 
-        Map<String, Object> userData = Map.of(
-                "message", registerResponse.getMessage(),
-                "user", registerResponse.getUser(),
-                "zones", registerResponse.getZones() != null ? registerResponse.getZones() : Collections.emptyList(),
-                "skills", registerResponse.getSkills() != null ? registerResponse.getSkills() : Collections.emptyList()
-        );
+        Map<String, Object> userData = new HashMap<>();
+
+        userData.put("message", registerResponse.getMessage());
+        userData.put("zones", registerResponse.getZones() != null ? registerResponse.getZones() : Collections.emptyList());
+        userData.put("skills", registerResponse.getSkills() != null ? registerResponse.getSkills() : Collections.emptyList());
+
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> userMap = mapper.convertValue(registerResponse.getUser(), Map.class);
+        userData.putAll(userMap);
 
         Map<String, Object> body = Map.of(
                 "messageId", messageId,
@@ -51,6 +56,7 @@ public class CorePublisherService {
         );
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user created event to core with messageId: {}", messageId);
+        log.info("Sent user created body: {}", body);
 
         String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
         log.info("Received user created response from core: {} for messageId: {}", response, messageId);
@@ -85,6 +91,7 @@ public class CorePublisherService {
                 ),
                 "payload", payload
         );
+
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user rejected event to core with messageId: {} and reason: {} ", messageId, errorMessage);
 

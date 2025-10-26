@@ -17,6 +17,4 @@ public class UserDto {
     private String dni;
     private String role;
     private Boolean active;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
 }
