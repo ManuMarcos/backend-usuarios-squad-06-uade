@@ -175,16 +175,20 @@ public class UserService {
 
         corePublisherService.sendUserCreatedToCore(response);
 
-        activateUser(savedUser.getUserId());
+        activateUserAfterRegistration(savedUser.getUserId());
 
         return response;
     }
 
-    private void activateUser(Long userId) {
+    @Transactional
+    public void activateUserAfterRegistration(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
-        user.setActive(true);
-        userRepository.save(user);
+        if (!user.getActive()) {
+            user.setActive(true);
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+        }
     }
 
 
