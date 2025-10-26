@@ -56,10 +56,10 @@ public class CorePublisherService {
         );
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user created event to core with messageId: {}", messageId);
-        log.info("Enviando evento: {}", body);
+        log.info("Sent user created body: {}", body);
 
-        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        //log.info("Received user created response from core: {} for messageId: {}", response, messageId);
+        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        log.info("Received user created response from core: {} for messageId: {}", response, messageId);
 
     }
 
@@ -95,7 +95,7 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user rejected event to core with messageId: {} and reason: {} ", messageId, errorMessage);
 
-        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        //log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);
+        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);
     }
 }
