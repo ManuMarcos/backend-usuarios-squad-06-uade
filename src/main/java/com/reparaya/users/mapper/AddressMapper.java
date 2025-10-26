@@ -44,6 +44,6 @@ public class AddressMapper {
                 .apartment(addr.getApartment() != null ? addr.getApartment() : null)
                 .user(user)
                 .build()
-                ).toList();
+                ).collect(Collectors.toList());
     }
 }
