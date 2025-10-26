@@ -151,8 +151,6 @@ public class UserService {
                 .phoneNumber(user.getPhoneNumber())
                 .dni(user.getDni())
                 .addresses(user.getAddresses() != null ? user.getAddresses().stream().map(AddressMapper::toDto).toList() : Collections.emptyList())
-                .createdAt(user.getCreatedAt())
-                .updatedAt(user.getUpdatedAt())
                 .build();
     }
 
@@ -163,7 +161,7 @@ public class UserService {
         return raw.trim().toUpperCase();
     }
 
-    public RegisterResponse registerUserFromEvent(RegisterRequest request, CoreMessage event) {
+    public void registerUserFromEvent(RegisterRequest request, CoreMessage event) {
 
         User savedUser = createUser(request, event.getDestination());
 
@@ -176,8 +174,6 @@ public class UserService {
         corePublisherService.sendUserCreatedToCore(response);
 
         activateUserAfterRegistration(savedUser.getUserId());
-
-        return response;
     }
 
     @Transactional
@@ -203,6 +199,8 @@ public class UserService {
                 null);
 
         corePublisherService.sendUserCreatedToCore(response);
+
+        // TODO: enviar email
 
         return response;
     }
