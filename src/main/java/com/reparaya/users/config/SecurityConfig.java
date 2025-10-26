@@ -39,6 +39,9 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/webhook/**",
+                        "/api/token/**",
+                        "/webhook/**",
+                        "/api/files/presign-upload",
                         "/api/token/validate"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll()

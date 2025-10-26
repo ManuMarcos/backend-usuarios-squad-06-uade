@@ -5,4 +5,5 @@ import lombok.Data;
 public class PresignRequest {
     private String fileName;
     private String contentType;
+    private long userId;
 }
