@@ -55,16 +55,40 @@ public class CorePublisherService {
                 "payload", userData
         );
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        log.info("Sending user created event to core with messageId: {}", messageId);
-        log.info("Sent user created body: {}", body);
+        log.info("Sending user created event to core with messageId: {} and email_ {}", messageId, registerResponse.getUser().getEmail());
 
         String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
         log.info("Received user created response from core: {} for messageId: {}", response, messageId);
 
     }
 
-    public void sendUserDeactivatedToCore(final String messageId) {
-        // implement
+    public void sendUserDeactivatedToCore(final Long userId) {
+        UUID messageId = UUID.randomUUID();
+
+        RestTemplate rt = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.add("x-api-key", API_KEY);
+
+        Map<String, Object> payload = Map.of(
+                "message", "Usuario dado de baja exitosamente",
+                "userId", userId);
+
+        Map<String, Object> body = Map.of(
+                "messageId", messageId,
+                "timestamp", OffsetDateTime.now().toString(),
+                "destination", Map.of(
+                        "topic", "user",
+                        "eventName", "user_deactivated"
+                ),
+                "payload", payload
+        );
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        log.info("Sending user deactivated event to core with messageId: {} and userId: {} ", messageId, userId);
+
+        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        log.info("Received user deactivated response from core: {} for messageId: {}", response, messageId);
     }
 
     public void sendUserUpdatedToCore(final String messageId) {

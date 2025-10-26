@@ -32,7 +32,7 @@ public class EventProcessStrategyFactory {
         return switch (eventName) {
             case ALTA_PRESTADOR_CATALOGO, ALTA_USUARIO_BUSQUEDA -> new EventUserRegisterStrategy(userService, corePublisherService);
             //case MODIFICACION_PRESTADOR_CATALOGO -> new EventUserUpdateStrategy(userService);
-            //case BAJA_PRESTADOR_CATALOGO -> new EventUserDeactivateStrategy(userService);
+            case BAJA_PRESTADOR_CATALOGO -> new EventUserDeactivateStrategy(userService, corePublisherService);
             default -> throw new IllegalStateException("The eventName: " + eventName + " is not recognized.");
         };
     }

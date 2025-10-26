@@ -27,6 +27,14 @@ public class EventMapper {
 
     }
 
+    public static String getUserIdFromDeactivateUserEvent(CoreMessage event) {
+        String userId = String.valueOf(event.getPayload().get("id"));
+        if (userId != null) {
+            return userId;
+        }
+        throw new IllegalArgumentException("The user id is required in the payload. Event id: " + event.getMessageId());
+    }
+
     private static RegisterRequest mapRegisterRequestFromCatalogue(Map<String, Object> payload) {
         ObjectMapper mapper = new ObjectMapper();
 

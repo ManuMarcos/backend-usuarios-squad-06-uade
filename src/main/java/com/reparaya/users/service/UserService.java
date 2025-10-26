@@ -11,6 +11,7 @@ import com.reparaya.users.util.RegisterOriginEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.reparaya.users.entity.Role;
@@ -174,6 +175,18 @@ public class UserService {
         corePublisherService.sendUserCreatedToCore(response);
 
         activateUserAfterRegistration(savedUser.getUserId());
+    }
+
+    @Transactional
+    public void deactivateUserFromEvent(final Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404), "User not found with id: " + userId));
+        if (!user.getActive()) {
+            log.error("Tried to deactivate an inactive user. User id: {}", userId);
+            throw new IllegalStateException("Cannot deactivate an inactive user. User id: " + userId);
+        }
+        user.setActive(false);
+        userRepository.save(user);
     }
 
     @Transactional
