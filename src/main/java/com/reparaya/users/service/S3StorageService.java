@@ -1,8 +1,8 @@
 package com.reparaya.users.service;
 
-import com.reparaya.users.controller.FileController;
 import com.reparaya.users.dto.PresignUploadReq;
-import lombok.RequiredArgsConstructor;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -18,27 +18,45 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.UUID;
 
+@Slf4j
 @Service
-@RequiredArgsConstructor
 public class S3StorageService {
 
-    AwsBasicCredentials awsCreds = AwsBasicCredentials.create(
-            "AKIAU6GDVJICARNAQWM6",
-            "IUUHdqO8nAVUhejXXXJGFnRWVtaUi2TPJt0XWeFb"
-    );
+    @Value("${aws.s3.access-key}")
+    private String accessKey;
 
-    private final S3Presigner presigner = S3Presigner.builder()
-            .region(Region.US_EAST_2)
-            .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-            .build();
-
-    private final S3Client s3;
+    @Value("${aws.s3.secret-key}")
+    private String secretKey;
 
     @Value("${aws.s3.bucket}")
     private String bucket;
 
-    @Value("${aws.s3.region}")
-    private String region;
+    private final String region = "us-east-2";
+
+    private S3Presigner presigner;
+    private S3Client s3;
+
+    @PostConstruct
+    private void init() {
+        try {
+            AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKey, secretKey);
+
+            this.presigner = S3Presigner.builder()
+                    .region(Region.of(region))
+                    .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+                    .build();
+
+            this.s3 = S3Client.builder()
+                    .region(Region.of(region))
+                    .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
+                    .build();
+
+            log.info("S3 client inicializado correctamente con región {}", region);
+        } catch (Exception e) {
+            log.error("Error inicializando S3StorageService: {}", e.getMessage());
+            throw new IllegalStateException("No se pudo inicializar S3StorageService", e);
+        }
+    }
 
     public URL generateUploadPresignedUrl(String objectKey, String contentType, int minutes) {
         PutObjectRequest put = PutObjectRequest.builder()
@@ -63,11 +81,9 @@ public class S3StorageService {
     public String presignedURL(PresignUploadReq req) {
         UUID uuid = UUID.randomUUID();
         PutObjectRequest put = PutObjectRequest.builder()
-                .bucket("arreglaya-users-image-profile")
+                .bucket(bucket)
                 .key(uuid.toString())
-                .contentType(req.getContentType())
                 .build();
-
 
         PresignedPutObjectRequest presignedRequest = presigner.presignPutObject(
                 r -> r.signatureDuration(Duration.ofMinutes(10))
