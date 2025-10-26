@@ -71,7 +71,7 @@ public class CorePublisherService {
         // implement
     }
 
-    public void sendUserRejectedToCore(final CoreMessage message, final String errorMessage) {
+    public void sendUserRejectedToCore(final String email, final String errorMessage) {
         UUID messageId = UUID.randomUUID();
 
         RestTemplate rt = new RestTemplate();
@@ -80,7 +80,8 @@ public class CorePublisherService {
         headers.add("x-api-key", API_KEY);
 
         Map<String, Object> payload = Map.of(
-                "message", "Usuario rechazado. Motivo: " + errorMessage);
+                "message", "Usuario rechazado. Motivo: " + errorMessage,
+                "email", email);
 
         Map<String, Object> body = Map.of(
                 "messageId", messageId,
