@@ -39,9 +39,10 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/webhook/**",
-                    "/api/token/**"
+                    "/api/token/**",
+                    "/webhook/**",
+                        "/api/files/presign-upload"
                 ).permitAll()
-                    .requestMatchers("/api/users/*/profile-image/presign").authenticated()
                     .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
