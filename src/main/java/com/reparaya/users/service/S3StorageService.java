@@ -43,13 +43,13 @@ public class S3StorageService {
     @PostConstruct
     void init() {
         if (accessKey == null || accessKey.isBlank() || secretKey == null || secretKey.isBlank()) {
-            throw new IllegalStateException("AWS credentials no configuradas. Revisá AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY.");
+            throw new IllegalStateException("AWS credentials no configuradas. Revisar AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY.");
         }
 
         AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKey, secretKey);
 
         this.presigner = S3Presigner.builder()
-                .region(Region.US_EAST_2) // región fija como pediste
+                .region(Region.US_EAST_2) 
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
                 .build();
 
