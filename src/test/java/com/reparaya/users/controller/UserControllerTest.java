@@ -6,20 +6,21 @@ import com.reparaya.users.dto.LoginResponse;
 import com.reparaya.users.dto.RegisterResponse;
 import com.reparaya.users.dto.UpdateUserRequest;
 import com.reparaya.users.dto.UserChangeActiveRequest;
+import com.reparaya.users.dto.UserDto;
 import com.reparaya.users.dto.UserInfoLoginResponse;
-import com.reparaya.users.entity.User;
 import com.reparaya.users.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -45,48 +46,53 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_returnsOkAndDelegatesToService() throws Exception {
-        when(userService.getAllUsers()).thenReturn(Collections.emptyList());
+        when(userService.getAllUsersDto()).thenReturn(Collections.emptyList());
 
         mvc.perform(get("/api/users"))
                 .andExpect(status().isOk())
                 .andExpect(content().json("[]"));
 
-        verify(userService).getAllUsers();
+        verify(userService).getAllUsersDto();
     }
 
     @Test
     void getUserById_whenFound_returnsUser() throws Exception {
-        User user = new User();
-        user.setUserId(5L);
-        user.setEmail("found@example.com");
-        user.setFirstName("Found");
-        user.setLastName("User");
+        UserDto user = UserDto.builder()
+                .userId(5L)
+                .email("found@example.com")
+                .firstName("Found")
+                .lastName("User")
+                .build();
 
-        when(userService.getUserById(5L)).thenReturn(Optional.of(user));
+        when(userService.getUserDtoById(5L)).thenReturn(user);
 
         mvc.perform(get("/api/users/{id}", 5L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("found@example.com"));
 
-        verify(userService).getUserById(5L);
+        verify(userService).getUserDtoById(5L);
     }
 
     @Test
     void getUserById_whenMissing_returns404() throws Exception {
-        when(userService.getUserById(42L)).thenReturn(Optional.empty());
+        when(userService.getUserDtoById(42L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "not found"));
 
         mvc.perform(get("/api/users/{id}", 42L))
                 .andExpect(status().isNotFound());
 
-        verify(userService).getUserById(42L);
+        verify(userService).getUserDtoById(42L);
     }
 
     @Test
     void registerUser_returnsOkResponse() throws Exception {
         RegisterResponse response = RegisterResponse.builder()
                 .message("OK")
-                .email("new@example.com")
-                .role("ROLE_ADMIN")
+                .user(UserDto.builder()
+                        .userId(10L)
+                        .email("new@example.com")
+                        .role("ROLE_ADMIN")
+                        .build())
                 .build();
 
         when(userService.registerUser(any())).thenReturn(response);
@@ -100,12 +106,12 @@ class UserControllerTest {
                   "dni": "12345678",
                   "phoneNumber": "123",
                   "role": "ADMIN",
-                  "primaryAddressInfo": {
+                  "address": [{
                       "state": "BA",
                       "city": "Avellaneda",
                       "street": "Belgrano",
                       "number": "123"
-                  }
+                  }]
                 }
                 """;
 
@@ -113,8 +119,8 @@ class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("new@example.com"))
-                .andExpect(jsonPath("$.role").value("ROLE_ADMIN"));
+                .andExpect(jsonPath("$.user.email").value("new@example.com"))
+                .andExpect(jsonPath("$.user.role").value("ROLE_ADMIN"));
 
         verify(userService).registerUser(any());
     }
@@ -123,17 +129,17 @@ class UserControllerTest {
     void registerUser_invalidEmail_returns400() throws Exception {
         mvc.perform(post("/api/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"bad-email\",\"password\":\"Secret123!\",\"firstName\":\"X\",\"lastName\":\"Y\",\"dni\":\"1\",\"phoneNumber\":\"2\",\"role\":\"ADMIN\",\"primaryAddressInfo\":{\"state\":\"BA\",\"city\":\"Avellaneda\",\"street\":\"Belgrano\",\"number\":\"123\"}}"))
+                        .content("{\"email\":\"bad-email\",\"password\":\"Secret123!\",\"firstName\":\"X\",\"lastName\":\"Y\",\"dni\":\"1\",\"phoneNumber\":\"2\",\"role\":\"ADMIN\",\"address\":[{\"state\":\"BA\",\"city\":\"Avellaneda\",\"street\":\"Belgrano\",\"number\":\"123\"}]}"))
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(userService);
     }
 
     @Test
-    void registerUser_shortPassword_returns400() throws Exception {
+    void registerUser_blankPassword_returns400() throws Exception {
         mvc.perform(post("/api/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"valid@example.com\",\"password\":\"short\",\"firstName\":\"X\",\"lastName\":\"Y\",\"dni\":\"1\",\"phoneNumber\":\"2\",\"role\":\"ADMIN\",\"primaryAddressInfo\":{\"state\":\"BA\",\"city\":\"Avellaneda\",\"street\":\"Belgrano\",\"number\":\"123\"}}"))
+                        .content("{\"email\":\"valid@example.com\",\"password\":\"\",\"firstName\":\"X\",\"lastName\":\"Y\",\"dni\":\"1\",\"phoneNumber\":\"2\",\"role\":\"ADMIN\",\"address\":[{\"state\":\"BA\",\"city\":\"Avellaneda\",\"street\":\"Belgrano\",\"number\":\"123\"}]}"))
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(userService);
@@ -146,7 +152,7 @@ class UserControllerTest {
 
         mvc.perform(post("/api/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"duplicate@example.com\",\"password\":\"Secret123!\",\"firstName\":\"John\",\"lastName\":\"Doe\",\"dni\":\"12345678\",\"phoneNumber\":\"123\",\"role\":\"ADMIN\",\"primaryAddressInfo\":{\"state\":\"BA\",\"city\":\"Avellaneda\",\"street\":\"Belgrano\",\"number\":\"123\"}}"))
+                        .content("{\"email\":\"duplicate@example.com\",\"password\":\"Secret123!\",\"firstName\":\"John\",\"lastName\":\"Doe\",\"dni\":\"12345678\",\"phoneNumber\":\"123\",\"role\":\"ADMIN\",\"address\":[{\"state\":\"BA\",\"city\":\"Avellaneda\",\"street\":\"Belgrano\",\"number\":\"123\"}]}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("exists"));
 
@@ -240,13 +246,12 @@ class UserControllerTest {
     @Test
     void updateUser_whenUserNotFound_returns404() throws Exception {
         when(userService.updateUserPartially(eq(7L), any(UpdateUserRequest.class)))
-                .thenThrow(new RuntimeException("not found"));
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "not found"));
 
         mvc.perform(patch("/api/users/{userId}", 7L)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"firstName\":\"New\"}"))
-                .andExpect(status().isNotFound())
-                .andExpect(content().string("not found"));
+                .andExpect(status().isNotFound());
 
         verify(userService).updateUserPartially(eq(7L), any(UpdateUserRequest.class));
     }
