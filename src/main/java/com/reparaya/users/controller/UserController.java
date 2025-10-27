@@ -1,10 +1,8 @@
 package com.reparaya.users.controller;
 
 import java.util.List;
-import java.util.Optional;
 
 import com.reparaya.users.dto.*;
-import com.reparaya.users.util.RegisterOriginEnum;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import org.springframework.http.HttpStatus;
@@ -17,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.reparaya.users.entity.User;
 import com.reparaya.users.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
