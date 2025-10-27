@@ -28,9 +28,9 @@ public class EventMapper {
     }
 
     public static String getUserIdFromDeactivateUserEvent(CoreMessage event) {
-        String userId = String.valueOf(event.getPayload().get("id"));
-        if (userId != null) {
-            return userId;
+        Object idValue = event.getPayload().get("id");
+        if (idValue != null) {
+            return String.valueOf(idValue);
         }
         throw new IllegalArgumentException("The user id is required in the payload. Event id: " + event.getMessageId());
     }

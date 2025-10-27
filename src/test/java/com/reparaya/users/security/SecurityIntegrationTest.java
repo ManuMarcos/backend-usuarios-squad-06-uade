@@ -1,26 +1,28 @@
 package com.reparaya.users.security;
 
-import com.reparaya.users.service.UserService;
+import com.reparaya.users.entity.Role;
+import com.reparaya.users.entity.User;
+import com.reparaya.users.repository.RoleRepository;
+import com.reparaya.users.repository.UserRepository;
 import com.reparaya.users.util.JwtUtil;
+import com.reparaya.users.util.RegisterOriginEnum;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 import javax.crypto.SecretKey;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -31,19 +33,62 @@ class SecurityIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired JwtUtil jwtUtil;
-
-    @MockBean UserService userService;
+    @Autowired UserRepository userRepository;
+    @Autowired RoleRepository roleRepository;
 
     private String bearer(String token) {
         return "Bearer " + token;
+    }
+
+    @BeforeEach
+    void setUpData() {
+        userRepository.deleteAll();
+        roleRepository.deleteAll();
+
+        Role adminRole = roleRepository.save(Role.builder()
+                .name("ROLE_ADMIN")
+                .description("Administrador")
+                .active(true)
+                .build());
+
+        Role clientRole = roleRepository.save(Role.builder()
+                .name("ROLE_CLIENTE")
+                .description("Cliente")
+                .active(true)
+                .build());
+
+        List<User> seedUsers = List.of(
+                User.builder()
+                        .email("admin@example.com")
+                        .firstName("Admin")
+                        .lastName("User")
+                        .role(adminRole)
+                        .active(true)
+                        .registerOrigin(RegisterOriginEnum.WEB_USUARIOS.name())
+                        .build(),
+                User.builder()
+                        .email("client@example.com")
+                        .firstName("Client")
+                        .lastName("User")
+                        .role(clientRole)
+                        .active(true)
+                        .registerOrigin(RegisterOriginEnum.WEB_USUARIOS.name())
+                        .build()
+        );
+
+        seedUsers.forEach(userRepository::save);
+    }
+
+    @AfterEach
+    void cleanData() {
+        userRepository.deleteAll();
+        roleRepository.deleteAll();
     }
 
     @Test
     void getUsers_withoutToken_returns401() throws Exception {
         mvc.perform(get("/api/users"))
                 .andExpect(status().isUnauthorized());
-
-        verifyNoInteractions(userService);
     }
 
     @Test
@@ -53,20 +98,15 @@ class SecurityIntegrationTest {
         mvc.perform(get("/api/users")
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isForbidden());
-
-        verifyNoInteractions(userService);
     }
 
     @Test
     void getUsers_withAdminToken_returns200() throws Exception {
-        when(userService.getAllUsers()).thenReturn(Collections.emptyList());
-
         String token = jwtUtil.generateToken("admin@example.com", "ADMIN");
 
         mvc.perform(get("/api/users")
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isOk());
-        verify(userService).getAllUsers();
     }
 
     @Test
@@ -84,7 +124,5 @@ class SecurityIntegrationTest {
         mvc.perform(get("/api/users")
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isUnauthorized());
-
-        verifyNoInteractions(userService);
     }
 }

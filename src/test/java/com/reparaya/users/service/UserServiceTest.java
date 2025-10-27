@@ -7,6 +7,7 @@ import com.reparaya.users.dto.RegisterRequest;
 import com.reparaya.users.dto.RegisterResponse;
 import com.reparaya.users.dto.UpdateUserRequest;
 import com.reparaya.users.dto.UserChangeActiveRequest;
+import com.reparaya.users.external.service.CorePublisherService;
 import com.reparaya.users.entity.Address;
 import com.reparaya.users.entity.Role;
 import com.reparaya.users.entity.User;
@@ -35,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -50,6 +52,7 @@ class UserServiceTest {
     @Mock private LdapUserService ldapUserService;
     @Mock private JwtUtil jwtUtil;
     @Mock private RoleRepository roleRepository;
+    @Mock private CorePublisherService corePublisherService;
 
     @InjectMocks private UserService userService;
 
@@ -136,10 +139,8 @@ class UserServiceTest {
                 .city("Avellaneda")
                 .street("Belgrano")
                 .number("123")
-                .postalCode("1870")
                 .build();
-        when(request.getPrimaryAddressInfo()).thenReturn(primary);
-        when(request.getSecondaryAddressInfo()).thenReturn(null);
+        when(request.getAddress()).thenReturn(Collections.singletonList(primary));
 
         when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
         when(ldapUserService.userExistsInLdap("new@example.com")).thenReturn(false);
@@ -151,7 +152,7 @@ class UserServiceTest {
             return user;
         });
 
-        User created = userService.createUser(request);
+        User created = userService.createUser(request, null);
 
         assertNotNull(created);
         assertEquals(42L, created.getUserId());
@@ -169,7 +170,7 @@ class UserServiceTest {
         User entitySaved = userCaptor.getValue();
         assertEquals("new@example.com", entitySaved.getEmail());
         assertEquals("ROLE_ADMIN", entitySaved.getRole().getName());
-        assertTrue(entitySaved.getActive());
+        assertFalse(entitySaved.getActive());
         assertEquals(RegisterOriginEnum.WEB_USUARIOS.name(), entitySaved.getRegisterOrigin());
 
         verify(ldapUserService).createUserInLdap(
@@ -186,7 +187,7 @@ class UserServiceTest {
 
         when(userRepository.existsByEmail("duplicate@example.com")).thenReturn(true);
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request, null));
         assertTrue(ex.getMessage().contains("duplicate@example.com"));
 
         verify(userRepository).existsByEmail("duplicate@example.com");
@@ -205,7 +206,7 @@ class UserServiceTest {
         when(ldapUserService.userExistsInLdap("role-missing@example.com")).thenReturn(false);
         when(roleRepository.findByName("MANAGER")).thenReturn(Optional.empty());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request));
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request, null));
         assertTrue(ex.getMessage().contains("Rol no encontrado"));
 
         verify(userRepository).existsByEmail("role-missing@example.com");
@@ -231,8 +232,7 @@ class UserServiceTest {
                 .street("Ituzaingo")
                 .number("456")
                 .build();
-        when(request.getPrimaryAddressInfo()).thenReturn(primary);
-        when(request.getSecondaryAddressInfo()).thenReturn(null);
+        when(request.getAddress()).thenReturn(Collections.singletonList(primary));
 
         when(userRepository.existsByEmail("rollback@example.com")).thenReturn(false);
         when(ldapUserService.userExistsInLdap("rollback@example.com")).thenReturn(false);
@@ -246,7 +246,7 @@ class UserServiceTest {
         doThrow(new RuntimeException("LDAP error"))
                 .when(ldapUserService).createUserInLdap(any(User.class), eq("Secret"));
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.createUser(request));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.createUser(request, null));
         assertTrue(ex.getMessage().contains("LDAP"));
 
         verify(userRepository).save(userCaptor.capture());
@@ -268,14 +268,16 @@ class UserServiceTest {
                 .build();
 
         UserService spyService = org.mockito.Mockito.spy(userService);
-        doReturn(created).when(spyService).createUser(request);
+        doReturn(created).when(spyService).createUser(eq(request), isNull());
 
         RegisterResponse response = spyService.registerUser(request);
 
         assertEquals(UserService.SUCCESS_REGISTER, response.getMessage());
-        assertEquals("register@example.com", response.getEmail());
-        assertEquals("ROLE_ADMIN", response.getRole());
-        verify(spyService).createUser(request);
+        assertNotNull(response.getUser());
+        assertEquals("register@example.com", response.getUser().getEmail());
+        assertEquals("ROLE_ADMIN", response.getUser().getRole());
+        verify(spyService).createUser(eq(request), isNull());
+        verify(corePublisherService).sendUserCreatedToCore(response);
     }
 
     @Test
