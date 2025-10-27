@@ -87,8 +87,8 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user deactivated event to core with messageId: {} and userId: {} ", messageId, userId);
 
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        log.info("Received user deactivated response from core: {} for messageId: {}", response, messageId);
+        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        //log.info("Received user deactivated response from core: {} for messageId: {}", response, messageId);
     }
 
     public void sendUserUpdatedToCore(final String messageId) {
@@ -120,7 +120,7 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user rejected event to core with messageId: {} and reason: {} ", messageId, errorMessage);
 
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
-        log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);
+        //String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        //log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);
     }
 }
