@@ -298,6 +298,53 @@ public class UserService {
     }
 
     @Transactional
+    public UpdateUserResponse updateUserPartiallyFromEvent(Long userId, UpdateUserRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+
+        String oldEmail = user.getEmail();
+
+        if (request.getEmail() != null) {
+            if (!oldEmail.equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+                throw new RuntimeException("El email ya se encuentra registrado.");
+            }
+            user.setEmail(request.getEmail());
+        }
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
+
+        if (request.getAddress() != null) {
+            List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
+            user.getAddresses().clear();
+            user.getAddresses().addAll(newAddresses);
+        }
+
+        user.setUpdatedAt(LocalDateTime.now());
+        User updatedUser = userRepository.save(user);
+
+        log.info("Partially updated user: {}", updatedUser.getEmail());
+
+        boolean ldapUpdated;
+
+        if (request.getPassword() != null) {
+            ldapUpdated = ldapUserService.updateUserInLdapWithNewPwd(oldEmail, updatedUser, request.getPassword());
+        } else {
+            ldapUpdated = ldapUserService.updateUserInLdap(oldEmail, updatedUser);
+        }
+        if (!ldapUpdated) {
+            log.error("Could not update user: {} in ldap", oldEmail);
+            throw new RuntimeException("Error al actualizar usuario en LDAP");
+        }
+
+        return UpdateUserResponse.builder()
+                .user(mapUserToDto(updatedUser))
+                .zones(request.getZones())
+                .skills(request.getSkills())
+                .build();
+    }
+
+    @Transactional
     public String updateUserPartially(Long userId, UpdateUserRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
