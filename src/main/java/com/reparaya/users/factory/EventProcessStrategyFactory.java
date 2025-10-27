@@ -19,6 +19,7 @@ public class EventProcessStrategyFactory {
     public static final String ALTA_PRESTADOR_CATALOGO = "alta";
     public static final String ALTA_USUARIO_BUSQUEDA = "solicitado";
     public static final String MODIFICACION_PRESTADOR_CATALOGO = "modificacion";
+    public static final String MODIFICACION_USUARIO_BUSQUEDA = "actualizado";
     public static final String BAJA_PRESTADOR_CATALOGO = "baja";
 
     private final UserService userService;
@@ -31,7 +32,7 @@ public class EventProcessStrategyFactory {
 
         return switch (eventName) {
             case ALTA_PRESTADOR_CATALOGO, ALTA_USUARIO_BUSQUEDA -> new EventUserRegisterStrategy(userService, corePublisherService);
-            //case MODIFICACION_PRESTADOR_CATALOGO -> new EventUserUpdateStrategy(userService);
+            case MODIFICACION_PRESTADOR_CATALOGO, MODIFICACION_USUARIO_BUSQUEDA -> new EventUserUpdateStrategy(userService, corePublisherService);
             case BAJA_PRESTADOR_CATALOGO -> new EventUserDeactivateStrategy(userService, corePublisherService);
             default -> throw new IllegalStateException("The eventName: " + eventName + " is not recognized.");
         };

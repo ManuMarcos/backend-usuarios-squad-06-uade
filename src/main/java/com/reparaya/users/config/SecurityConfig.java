@@ -2,7 +2,6 @@ package com.reparaya.users.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -43,6 +42,7 @@ public class SecurityConfig {
                         "/webhook/**",
                         "/api/token/validate"
                 ).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll()
                 // Endpoints de permisos - ver permisos (todos los roles)
                 .requestMatchers("/api/permissions/user/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
                 .requestMatchers("/api/permissions/all", "/api/permissions/module/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")

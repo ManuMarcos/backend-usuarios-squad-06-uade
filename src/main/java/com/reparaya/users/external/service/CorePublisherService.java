@@ -3,6 +3,7 @@ package com.reparaya.users.external.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reparaya.users.dto.CoreMessage;
 import com.reparaya.users.dto.RegisterResponse;
+import com.reparaya.users.dto.UpdateUserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -38,12 +39,15 @@ public class CorePublisherService {
         Map<String, Object> userData = new HashMap<>();
 
         userData.put("message", registerResponse.getMessage());
-        userData.put("zones", registerResponse.getZones() != null ? registerResponse.getZones() : Collections.emptyList());
-        userData.put("skills", registerResponse.getSkills() != null ? registerResponse.getSkills() : Collections.emptyList());
 
         ObjectMapper mapper = new ObjectMapper();
         Map<String, Object> userMap = mapper.convertValue(registerResponse.getUser(), Map.class);
         userData.putAll(userMap);
+
+        userData.put("zones", !registerResponse.getZones().isEmpty() ? registerResponse.getZones() : Collections.emptyList());
+        userData.put("skills", !registerResponse.getSkills().isEmpty() ? registerResponse.getSkills() : Collections.emptyList());
+
+
 
         Map<String, Object> body = Map.of(
                 "messageId", messageId,
@@ -91,8 +95,42 @@ public class CorePublisherService {
         log.info("Received user deactivated response from core: {} for messageId: {}", response, messageId);
     }
 
-    public void sendUserUpdatedToCore(final String messageId) {
-        // implement
+    public void sendUserUpdatedToCore(final Long userId, final UpdateUserResponse updateResponse) {
+        UUID messageId = UUID.randomUUID();
+
+        RestTemplate rt = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.add("x-api-key", API_KEY);
+
+        Map<String, Object> userData = new HashMap<>();
+
+        userData.put("message", "Usuario actualizado exitosamente");
+
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> userMap = mapper.convertValue(updateResponse.getUser(), Map.class);
+        userData.putAll(userMap);
+
+        userData.put("zones", !updateResponse.getZones().isEmpty() ? updateResponse.getZones() : Collections.emptyList());
+        userData.put("skills", !updateResponse.getSkills().isEmpty() ? updateResponse.getSkills() : Collections.emptyList());
+
+        Map<String, Object> body = Map.of(
+                "messageId", messageId,
+                "timestamp", OffsetDateTime.now().toString(),
+                "destination", Map.of(
+                        "topic", "user",
+                        "eventName", "user_updated"
+                ),
+                "payload", userData
+        );
+
+        log.info("Todo: {}", body);
+
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        log.info("Sending user updated event to core with messageId: {} and email_ {}", messageId, updateResponse.getUser().getEmail());
+
+        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        log.info("Received user updated response from core: {} for messageId: {}", response, messageId);
     }
 
     public void sendUserRejectedToCore(final String email, final String errorMessage) {
