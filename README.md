@@ -7,6 +7,13 @@ Este backend corre en **Java 21** con **Spring Boot** y expone un servicio RESTf
 
 ---
 
+## Entornos
+
+| Entorno             | URL                                                                |
+| ------------------- | ------------------------------------------------------------------ |
+| Producción    | [https://4j0gfpnn0g.execute-api.us-east-2.amazonaws.com/prod/](https://4j0gfpnn0g.execute-api.us-east-2.amazonaws.com/prod/) |
+| Desarrollo    | [https://4j0gfpnn0g.execute-api.us-east-2.amazonaws.com/dev/](https://4j0gfpnn0g.execute-api.us-east-2.amazonaws.com/dev/)  |
+
 # 📖 Documentación de la API de Usuarios – ArreglaYa
 
 Este repositorio incluye la especificación **OpenAPI 3.0** de la API de Usuarios en la carpeta:
