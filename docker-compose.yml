@@ -102,6 +102,37 @@ services:
       - slapd_data_dev:/etc/ldap/slapd.d
       - ./ldif-dev:/container/service/slapd/assets/config/bootstrap/ldif/custom
 
+  postgres-local:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    container_name: postgres-local
+    environment:
+      - POSTGRES_DB=users_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_local:/var/lib/postgresql/data
+
+  ldap-local:
+    image: osixia/openldap:1.5.0
+    restart: unless-stopped
+    container_name: ldap-local
+    ports:
+      - "389:389"
+      - "636:636"
+    environment:
+      - LDAP_ORGANISATION=ArreglaYa Com
+      - LDAP_DOMAIN=arreglaya.com
+      - LDAP_ADMIN_PASSWORD=arreglayaadmin
+      - LDAP_PASSWORD_HASH={SHA}
+    command: "--loglevel info --copy-service"
+    volumes:
+      - ldap_data_local:/var/lib/ldap
+      - slapd_data_local:/etc/ldap/slapd.d
+      - ./ldif-dev:/container/service/slapd/assets/config/bootstrap/ldif/custom
+
 volumes:
   postgres_data_prod:
   ldap_data_prod:
@@ -109,3 +140,6 @@ volumes:
   postgres_data_dev:
   ldap_data_dev:
   slapd_data_dev:
+  postgres_data_local:
+  ldap_data_local:
+  slapd_data_local:

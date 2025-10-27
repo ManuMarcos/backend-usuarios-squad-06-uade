@@ -34,13 +34,16 @@ public class SecurityConfig {
                     "/api/users/register",
                     "/api/users/login",
                     "/api/users/*/reset-password",
-                    "/api/users/*",
+                    "/api/users/**",
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html",
-                    "/webhook/**"
+                    "/webhook/**",
+                    "/api/token/**",
+                    "/webhook/**",
+                        "/api/files/presign-upload"
                 ).permitAll()
-                .anyRequest().authenticated()
+                    .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         

@@ -1,14 +1,18 @@
 package com.reparaya.users.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
 @Table(name = "addresses")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = "user")
+@EqualsAndHashCode(exclude = "user")
 public class Address {
 
     @Id
@@ -21,8 +25,6 @@ public class Address {
     @Column(nullable = false)
     private String city;
 
-    private String locality;
-
     @Column(nullable = false)
     private String street;
 
@@ -33,11 +35,9 @@ public class Address {
 
     private String apartment;
 
-    @Column(name = "postal_code")
-    private String postalCode;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false,
             foreignKey = @ForeignKey(name = "fk_address_user"))
+    @JsonBackReference
     private User user;
 }
