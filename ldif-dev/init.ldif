@@ -1,9 +1,3 @@
-# Estructura base del dominio
-dn: dc=arreglaya,dc=com
-objectClass: top
-objectClass: domain
-dc: arreglaya
-
 # OU para usuarios
 dn: ou=users,dc=arreglaya,dc=com
 objectClass: top
