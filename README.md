@@ -51,9 +51,6 @@ levantar docker : docker compose up -d backend-app-dev postgres-dev ldap-dev
 
 .\mvnw surefire-report:report
 
-.\mvnw.cmd test jacoco:report
-
 docker compose exec postgres-dev sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\\dt"'
 
 docker compose logs -f
-
