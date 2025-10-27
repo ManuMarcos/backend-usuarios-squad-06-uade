@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.reparaya.users.dto.AddressInfo;
 import com.reparaya.users.dto.CoreMessage;
 import com.reparaya.users.dto.RegisterRequest;
-import com.reparaya.users.entity.Address;
+import com.reparaya.users.dto.UpdateUserRequest;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
@@ -24,15 +24,77 @@ public class EventMapper {
             case TOPIC_PRESTADOR_MODULE_CATALOG -> mapRegisterRequestFromCatalogue(event.getPayload());
             default -> throw new IllegalStateException("The topic: " + topic + " is not recognized.");
         };
-
     }
 
-    public static String getUserIdFromDeactivateUserEvent(CoreMessage event) {
+    public static UpdateUserRequest mapUpdateRequestFromEvent(CoreMessage event) {
+        final String topic = event.getDestination().getTopic();
+        return switch (topic) {
+            case TOPIC_USUARIO_MODULE_SEARCH -> mapUpdateRequestNormally(event);
+            case TOPIC_PRESTADOR_MODULE_CATALOG -> mapUpdateRequestFromCatalogue(event.getPayload());
+            default -> throw new IllegalStateException("The topic: " + topic + " is not recognized.");
+        };
+    }
+
+    public static String getUserIdFromCatalogueUserEvent(CoreMessage event) {
         String userId = String.valueOf(event.getPayload().get("id_prestador"));
         if (userId != null) {
             return userId;
         }
-        throw new IllegalArgumentException("The user id to be deactivated is required in the payload. Event id: " + event.getMessageId());
+        throw new IllegalArgumentException("The id_prestador is required in the payload. Event id: " + event.getMessageId());
+    }
+
+    private static UpdateUserRequest mapUpdateRequestFromCatalogue(Map<String, Object> payload) {
+        ObjectMapper mapper = new ObjectMapper();
+
+        try {
+            String email = payload.get("email") != null ? String.valueOf(payload.get("email")) : null;
+            String firstName = payload.get("nombre") != null ? String.valueOf(payload.get("nombre")) : null;
+            String lastName = payload.get("apellido") != null ? String.valueOf(payload.get("apellido")) : null;
+            String phoneNumber = payload.get("telefono") != null ? String.valueOf(payload.get("telefono")) : null;
+            String password = payload.get("password") != null ? String.valueOf(payload.get("password")) : null;
+            String state = payload.get("estado") != null ? String.valueOf(payload.get("estado")) : null;
+            String city = payload.get("ciudad") != null ? String.valueOf(payload.get("ciudad")) : null;
+            String street = payload.get("calle") != null ? String.valueOf(payload.get("calle")) : null;
+            String number = payload.get("numero") != null ? String.valueOf(payload.get("numero")) : null;
+            String floor = payload.get("piso") != null ? String.valueOf(payload.get("piso")) : null;
+            String apartment = payload.get("departamento") != null ? String.valueOf(payload.get("departamento")) : null;
+
+            List<Object> zones = new ArrayList<>();
+            if (payload.get("zonas") != null) {
+                zones = mapper.convertValue(payload.get("zonas"), new TypeReference<List<Object>>() {});
+            }
+
+            List<Object> skills = new ArrayList<>();
+            if (payload.get("habilidades") != null) {
+                skills = mapper.convertValue(payload.get("habilidades"), new TypeReference<List<Object>>() {});
+            }
+
+            return UpdateUserRequest.builder()
+                    .email(email)
+                    .password(password)
+                    .firstName(firstName)
+                    .lastName(lastName)
+                    .phoneNumber(phoneNumber)
+                    .address(
+                        List.of(
+                            AddressInfo
+                                    .builder()
+                                    .city(city)
+                                    .state(state)
+                                    .street(street)
+                                    .number(number)
+                                    .apartment(apartment)
+                                    .floor(floor)
+                                    .build()
+                        )
+                    )
+                    .zones(zones)
+                    .skills(skills)
+                    .build();
+        } catch (Exception ex) {
+            log.error("Error mapping catalogue payload to UpdateUserRequest: {}", ex.getMessage(), ex);
+            throw ex;
+        }
     }
 
     private static RegisterRequest mapRegisterRequestFromCatalogue(Map<String, Object> payload) {
@@ -127,6 +189,16 @@ public class EventMapper {
         ObjectMapper mapper = new ObjectMapper();
         try {
             return mapper.convertValue(event.getPayload(), RegisterRequest.class);
+        } catch (Exception ex) {
+            log.error("An error ocurred while deserializing event with messageId: {}. Error: {}", event.getMessageId(), ex.getMessage());
+            throw ex;
+        }
+    }
+
+    private static UpdateUserRequest mapUpdateRequestNormally(CoreMessage event) {
+        ObjectMapper mapper = new ObjectMapper();
+        try {
+            return mapper.convertValue(event.getPayload(), UpdateUserRequest.class);
         } catch (Exception ex) {
             log.error("An error ocurred while deserializing event with messageId: {}. Error: {}", event.getMessageId(), ex.getMessage());
             throw ex;
