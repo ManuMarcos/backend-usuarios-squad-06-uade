@@ -298,9 +298,9 @@ public class UserService {
     }
 
     @Transactional
-    public UpdateUserResponse updateUserPartiallyFromEvent(Long userId, UpdateUserRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+    public UpdateUserResponse updateUserPartiallyFromEvent(UpdateUserRequest request) {
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("Usuario con id " + request.getUserId() + " no encontrado"));
 
         String oldEmail = user.getEmail();
 

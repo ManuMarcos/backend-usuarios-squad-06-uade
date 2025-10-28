@@ -24,12 +24,10 @@ public class EventUserUpdateStrategy implements EventProcessStrategy {
     public boolean handle(CoreMessage event) {
         log.info("Starting event user update strategy");
 
-        Long userId = Long.valueOf(EventMapper.getUserIdFromCatalogueUserEvent(event));
-
         UpdateUserRequest request = mapUpdateRequestFromEvent(event);
         try {
-            UpdateUserResponse response = userService.updateUserPartiallyFromEvent(userId, request);
-            corePublisherService.sendUserUpdatedToCore(userId, response);
+            UpdateUserResponse response = userService.updateUserPartiallyFromEvent(request);
+            corePublisherService.sendUserUpdatedToCore(response);
             return true;
         } catch (Exception ex) {
             log.error("An error ocurred while processing user update though event with messageId: {} and error: {}", event.getMessageId(), ex.getMessage());
