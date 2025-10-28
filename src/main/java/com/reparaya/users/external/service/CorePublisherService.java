@@ -44,8 +44,9 @@ public class CorePublisherService {
         Map<String, Object> userMap = mapper.convertValue(registerResponse.getUser(), Map.class);
         userData.putAll(userMap);
 
-        userData.put("zones", !registerResponse.getZones().isEmpty() ? registerResponse.getZones() : Collections.emptyList());
-        userData.put("skills", !registerResponse.getSkills().isEmpty() ? registerResponse.getSkills() : Collections.emptyList());
+        // puede que vengan null las zonas y skills
+        userData.put("zones", registerResponse.getZones());
+        userData.put("skills", registerResponse.getSkills());
 
 
 
@@ -95,7 +96,7 @@ public class CorePublisherService {
         log.info("Received user deactivated response from core: {} for messageId: {}", response, messageId);
     }
 
-    public void sendUserUpdatedToCore(final Long userId, final UpdateUserResponse updateResponse) {
+    public void sendUserUpdatedToCore(final UpdateUserResponse updateResponse) {
         UUID messageId = UUID.randomUUID();
 
         RestTemplate rt = new RestTemplate();
@@ -111,8 +112,8 @@ public class CorePublisherService {
         Map<String, Object> userMap = mapper.convertValue(updateResponse.getUser(), Map.class);
         userData.putAll(userMap);
 
-        userData.put("zones", !updateResponse.getZones().isEmpty() ? updateResponse.getZones() : Collections.emptyList());
-        userData.put("skills", !updateResponse.getSkills().isEmpty() ? updateResponse.getSkills() : Collections.emptyList());
+        userData.put("zones", updateResponse.getZones());
+        userData.put("skills", updateResponse.getSkills());
 
         Map<String, Object> body = Map.of(
                 "messageId", messageId,
@@ -123,8 +124,6 @@ public class CorePublisherService {
                 ),
                 "payload", userData
         );
-
-        log.info("Todo: {}", body);
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user updated event to core with messageId: {} and email_ {}", messageId, updateResponse.getUser().getEmail());

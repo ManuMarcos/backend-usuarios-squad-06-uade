@@ -35,16 +35,18 @@ public class EventMapper {
         };
     }
 
-    public static String getUserIdFromCatalogueUserEvent(CoreMessage event) {
-        String userId = String.valueOf(event.getPayload().get("id_prestador"));
+    public static String getUserIdFromCatalogueUserEvent(Map<String, Object> payload) {
+        String userId = String.valueOf(payload.get("id_prestador"));
         if (userId != null) {
             return userId;
         }
-        throw new IllegalArgumentException("The id_prestador is required in the payload. Event id: " + event.getMessageId());
+        throw new IllegalArgumentException("The id_prestador is required in the payload");
     }
 
     private static UpdateUserRequest mapUpdateRequestFromCatalogue(Map<String, Object> payload) {
         ObjectMapper mapper = new ObjectMapper();
+
+        Long userId = Long.valueOf(getUserIdFromCatalogueUserEvent(payload));
 
         try {
             String email = payload.get("email") != null ? String.valueOf(payload.get("email")) : null;
@@ -70,6 +72,7 @@ public class EventMapper {
             }
 
             return UpdateUserRequest.builder()
+                    .userId(userId)
                     .email(email)
                     .password(password)
                     .firstName(firstName)
@@ -198,7 +201,11 @@ public class EventMapper {
     private static UpdateUserRequest mapUpdateRequestNormally(CoreMessage event) {
         ObjectMapper mapper = new ObjectMapper();
         try {
-            return mapper.convertValue(event.getPayload(), UpdateUserRequest.class);
+            UpdateUserRequest updateUserRequest = mapper.convertValue(event.getPayload(), UpdateUserRequest.class);
+            if (updateUserRequest.getUserId() != null) {
+                return updateUserRequest;
+            }
+            throw new IllegalArgumentException("The userId is required in the payload");
         } catch (Exception ex) {
             log.error("An error ocurred while deserializing event with messageId: {}. Error: {}", event.getMessageId(), ex.getMessage());
             throw ex;
