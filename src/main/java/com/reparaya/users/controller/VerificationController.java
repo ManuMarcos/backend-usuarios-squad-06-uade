@@ -35,7 +35,6 @@ public class VerificationController {
             return ResponseEntity.badRequest().body("Token inválido o expirado");
         }
 
-        //activar idempotente
         Optional<User> opt = userRepository.findByEmail(email);
         if (opt.isEmpty()) return ResponseEntity.badRequest().body("Usuario no encontrado");
 

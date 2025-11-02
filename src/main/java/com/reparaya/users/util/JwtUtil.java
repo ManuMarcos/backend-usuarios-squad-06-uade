@@ -138,7 +138,7 @@ public class JwtUtil {
                 .compact();
     }
 
-    /** Helper para extraer un claim genérico */
+    // Helper para extraer un claim generico
     public <T> T extractClaim(String token, String claimName, Class<T> clazz) {
         Claims claims = extractAllClaims(token);
         Object val = claims.get(claimName);
