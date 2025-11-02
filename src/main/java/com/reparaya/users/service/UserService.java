@@ -465,5 +465,19 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
     }
 
+    @Transactional
+    public boolean activateUserByEmailIfNeeded(String email) {
+        return userRepository.findByEmail(email)
+                .map(u -> {
+                    if (Boolean.TRUE.equals(u.getActive())) return false; // ya estaba activo
+                    u.setActive(true);
+                    u.setUpdatedAt(LocalDateTime.now());
+                    userRepository.save(u);
+                    return true;
+                })
+                .orElse(false); // no se encuentra el usuario
+    }
+
+
 
 }
