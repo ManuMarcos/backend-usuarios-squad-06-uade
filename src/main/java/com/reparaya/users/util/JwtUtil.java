@@ -13,6 +13,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.SignatureAlgorithm;
+import java.security.Key;
+
 @Slf4j
 @Component
 public class JwtUtil {
@@ -24,7 +29,42 @@ public class JwtUtil {
     private Long expiration;
 
     private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        // Si el secret parece Base64, lo decodificamos; si no, usamos bytes “raw”.
+        byte[] keyBytes;
+        try {
+            keyBytes = Decoders.BASE64.decode(secret);
+        } catch (IllegalArgumentException ignore) {
+            keyBytes = secret.getBytes();
+        }
+        return Keys.hmacShaKeyFor(keyBytes); // Requiere >= 32 bytes para HS256
+    }
+
+    public String generateEmailVerificationToken(String email, long ttlMillis) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("purpose", "verify_email");
+        return generateTokenWithClaims(claims, email, ttlMillis);
+    }
+
+    public boolean validateEmailVerificationToken(String token, String expectedEmail) {
+        try {
+            Claims claims = extractAllClaims(token);
+
+            // 1) propósito correcto
+            String purpose = claims.get("purpose", String.class);
+            if (!"verify_email".equals(purpose)) return false;
+
+            // 2) subject = email esperado
+            if (!expectedEmail.equals(claims.getSubject())) return false;
+
+            // 3) no expirado
+            Date exp = claims.getExpiration();
+            if (exp == null || exp.before(new Date())) return false;
+
+            return true;
+        } catch (Exception e) {
+            log.error("Token de verificación inválido: {}", e.getMessage());
+            return false;
+        }
     }
 
     public String generateToken(String email, String role) {
@@ -68,6 +108,9 @@ public class JwtUtil {
                 .getPayload();
     }
 
+
+
+
     private Boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }
@@ -81,4 +124,25 @@ public class JwtUtil {
             return false;
         }
     }
+
+    public String generateTokenWithClaims(Map<String, Object> claims, String subject, long expirationMillis) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + expirationMillis);
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(subject)          // subject = email (o userId)
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(getSigningKey()) // clave ya configurada en jwt.secret
+                .compact();
+    }
+
+    /** Helper para extraer un claim genérico */
+    public <T> T extractClaim(String token, String claimName, Class<T> clazz) {
+        Claims claims = extractAllClaims(token);
+        Object val = claims.get(claimName);
+        return clazz.isInstance(val) ? clazz.cast(val) : null;
+    }
+
 }

@@ -39,7 +39,8 @@ public class SecurityConfig {
                     "/swagger-ui/**",
                     "/swagger-ui.html",
                     "/webhook/**",
-                    "/api/token/**"
+                    "/api/token/**",
+                        "/error"
                 ).permitAll()
                 .anyRequest().authenticated()
             )

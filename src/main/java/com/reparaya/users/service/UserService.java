@@ -24,6 +24,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static com.reparaya.users.mapper.AddressMapper.mapAddressInfoListToAddressList;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.HashMap;
+import java.util.Map;
+import com.reparaya.users.util.JwtUtil;
+import com.reparaya.users.service.VerificationEmailService;
 
 @Slf4j
 @Service
@@ -35,6 +40,13 @@ public class UserService {
     private final LdapUserService ldapUserService;
     private final JwtUtil jwtUtil;
     private final CorePublisherService corePublisherService;
+    private final VerificationEmailService verificationEmailService;
+    @Value("${features.ldap.enabled:true}")
+    private boolean ldapEnabled;
+
+    @Value("${app.email-verification.expiration-ms}")
+    private long verificationExpMs;
+
 
     public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
     public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
@@ -119,26 +131,55 @@ public class UserService {
         User savedUser = userRepository.save(newUser);
         log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
 
-        try {
-            User ldapUser = User.builder()
-                .email(savedUser.getEmail())
-                .firstName(savedUser.getFirstName())
-                .lastName(savedUser.getLastName())
-                .phoneNumber(savedUser.getPhoneNumber())
-                .role(savedUser.getRole())
-                .dni(savedUser.getDni())
-                .active(savedUser.getActive())
-                .build();
-                
-            ldapUserService.createUserInLdap(ldapUser, request.getPassword());
+        if (ldapEnabled) {
+            try {
+                User ldapUser = User.builder()
+                        .email(savedUser.getEmail())
+                        .firstName(savedUser.getFirstName())
+                        .lastName(savedUser.getLastName())
+                        .phoneNumber(savedUser.getPhoneNumber())
+                        .role(savedUser.getRole())
+                        .dni(savedUser.getDni())
+                        .active(savedUser.getActive())
+                        .build();
 
-        } catch (Exception e) {
-            userRepository.delete(savedUser);
-            log.error("Error al crear usuario en LDAP, eliminando de PostgreSQL: {}", e.getMessage());
-            throw new RuntimeException("Error al crear usuario en LDAP: " + e.getMessage());
+                ldapUserService.createUserInLdap(ldapUser, request.getPassword());
+                log.info("Usuario creado en LDAP: {}", savedUser.getEmail());
+
+            } catch (Exception e) {
+                userRepository.delete(savedUser); // atomicidad solo con LDAP ON
+                log.error("Error al crear usuario en LDAP, eliminando de PostgreSQL: {}", e.getMessage());
+                throw new RuntimeException("Error al crear usuario en LDAP: " + e.getMessage());
+            }
+        } else {
+            log.warn("LDAP deshabilitado (features.ldap.enabled=false). Se omite creación en LDAP.");
         }
-
         return savedUser;
+
+        //PRUEBA SALTEANDO LDAP 1 de 2
+//        User savedUser = userRepository.save(newUser);
+//        log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
+//
+//        try {
+//            User ldapUser = User.builder()
+//                .email(savedUser.getEmail())
+//                .firstName(savedUser.getFirstName())
+//                .lastName(savedUser.getLastName())
+//                .phoneNumber(savedUser.getPhoneNumber())
+//                .role(savedUser.getRole())
+//                .dni(savedUser.getDni())
+//                .active(savedUser.getActive())
+//                .build();
+//
+//            ldapUserService.createUserInLdap(ldapUser, request.getPassword());
+//
+//        } catch (Exception e) {
+//            userRepository.delete(savedUser);
+//            log.error("Error al crear usuario en LDAP, eliminando de PostgreSQL: {}", e.getMessage());
+//            throw new RuntimeException("Error al crear usuario en LDAP: " + e.getMessage());
+//        }
+//
+//        return savedUser;
     }
 
     private UserDto mapUserToDto(User user) {
@@ -162,6 +203,21 @@ public class UserService {
         return raw.trim().toUpperCase();
     }
 
+    private void sendVerification(com.reparaya.users.entity.User savedUser) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("purpose", "verify_email"); // para distinguir el uso del token
+
+        // subject = email del usuario (así despues podemos validamos contra ese email)
+        String token = jwtUtil.generateTokenWithClaims(
+                claims,
+                savedUser.getEmail(),
+                verificationExpMs // ej. 24h (config en application.properties)
+        );
+
+        verificationEmailService.sendVerificationEmail(savedUser.getEmail(), token);
+    }
+
+
     public void registerUserFromEvent(RegisterRequest request, CoreMessage event) {
 
         User savedUser = createUser(request, event.getDestination());
@@ -174,7 +230,9 @@ public class UserService {
 
         corePublisherService.sendUserCreatedToCore(response);
 
-        activateUserAfterRegistration(savedUser.getUserId());
+        //activateUserAfterRegistration(savedUser.getUserId());
+        sendVerification(savedUser);
+
     }
 
     @Transactional
@@ -213,55 +271,119 @@ public class UserService {
 
         corePublisherService.sendUserCreatedToCore(response);
 
+
         // TODO: enviar email
+        sendVerification(savedUser);
 
         return response;
     }
 
-
     public LoginResponse authenticateUser(LoginRequest request) {
+
+        // 1) Busco el usuario en mi DB (si no existe, no tiene sentido seguir)
+        Optional<User> optUser = getUserByEmail(request.getEmail());
+        if (optUser.isEmpty()) {
+            log.error("Usuario no encontrado: {}", request.getEmail());
+            return new LoginResponse(null, null, "Usuario no encontrado");
+        }
+        User user = optUser.get();
+
+        // 2) MODO DEV: sin LDAP (features.ldap.enabled=false)
+        if (!ldapEnabled) {
+            if (!user.getActive()) {
+                return new LoginResponse(null, null, USER_NOT_ACTIVE_LOGIN);
+            }
+            String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName());
+            return new LoginResponse(
+                    token,
+                    UserInfoLoginResponse.builder()
+                            .id(user.getUserId())
+                            .email(user.getEmail())
+                            .firstName(user.getFirstName())
+                            .lastName(user.getLastName())
+                            .phoneNumber(user.getPhoneNumber())
+                            .address(AddressMapper.toDtoList(user.getAddresses()))
+                            .isActive(user.getActive())
+                            .dni(user.getDni())
+                            .role(user.getRole().getName())
+                            .build(),
+                    SUCCESS_LOGIN
+            );
+        }
+
+        // 3) FLUJO PROD: con LDAP habilitado
         boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail(), request.getPassword());
-        
         if (!ldapAuthSuccess) {
             log.warn("Autenticación LDAP fallida para usuario: {}", request.getEmail());
             return new LoginResponse(null, null, "Credenciales inválidas");
         }
 
-        Optional<User> optUser = getUserByEmail(request.getEmail());
-
-        if (optUser.isEmpty()) {
-            log.error("No se pudo obtener información del usuario: {}", request.getEmail());
-            return new LoginResponse(null, null, "Error obteniendo información del usuario");
-        }
-
-        User user = optUser.get();
-
         if (!user.getActive()) {
-            return new LoginResponse(
-                    null,
-                    null,
-                    USER_NOT_ACTIVE_LOGIN
-            );
+            return new LoginResponse(null, null, USER_NOT_ACTIVE_LOGIN);
         }
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName());
-        
         return new LoginResponse(
-            token,
-            UserInfoLoginResponse.builder()
-                    .id(user.getUserId())
-                    .email(user.getEmail())
-                    .firstName(user.getFirstName())
-                    .lastName(user.getLastName())
-                    .phoneNumber(user.getPhoneNumber())
-                    .address(AddressMapper.toDtoList(user.getAddresses()))
-                    .isActive(user.getActive())
-                    .dni(user.getDni())
-                    .role(user.getRole().getName())
-                    .build(),
+                token,
+                UserInfoLoginResponse.builder()
+                        .id(user.getUserId())
+                        .email(user.getEmail())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .phoneNumber(user.getPhoneNumber())
+                        .address(AddressMapper.toDtoList(user.getAddresses()))
+                        .isActive(user.getActive())
+                        .dni(user.getDni())
+                        .role(user.getRole().getName())
+                        .build(),
                 SUCCESS_LOGIN
         );
     }
+
+    //PRUEBA SALTEANDO LDAP 2 de 2
+//    public LoginResponse authenticateUser(LoginRequest request) {
+//        boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail(), request.getPassword());
+//
+//        if (!ldapAuthSuccess) {
+//            log.warn("Autenticación LDAP fallida para usuario: {}", request.getEmail());
+//            return new LoginResponse(null, null, "Credenciales inválidas");
+//        }
+//
+//        Optional<User> optUser = getUserByEmail(request.getEmail());
+//
+//        if (optUser.isEmpty()) {
+//            log.error("No se pudo obtener información del usuario: {}", request.getEmail());
+//            return new LoginResponse(null, null, "Error obteniendo información del usuario");
+//        }
+//
+//        User user = optUser.get();
+//
+//        if (!user.getActive()) {
+//            return new LoginResponse(
+//                    null,
+//                    null,
+//                    USER_NOT_ACTIVE_LOGIN
+//            );
+//        }
+//
+//        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName());
+//
+//        return new LoginResponse(
+//            token,
+//            UserInfoLoginResponse.builder()
+//                    .id(user.getUserId())
+//                    .email(user.getEmail())
+//                    .firstName(user.getFirstName())
+//                    .lastName(user.getLastName())
+//                    .phoneNumber(user.getPhoneNumber())
+//                    .address(AddressMapper.toDtoList(user.getAddresses()))
+//                    .isActive(user.getActive())
+//                    .dni(user.getDni())
+//                    .role(user.getRole().getName())
+//                    .build(),
+//                SUCCESS_LOGIN
+//        );
+//    }
 
     public boolean validateTokenAndUser(String token, String email) {
         return jwtUtil.validateToken(token, email);
@@ -342,4 +464,6 @@ public class UserService {
         user.setActive(request.isActive());
         user.setUpdatedAt(LocalDateTime.now());
     }
+
+
 }
