@@ -23,6 +23,9 @@ import java.util.*;
 import java.util.Map;
 
 import static com.reparaya.users.mapper.AddressMapper.mapAddressInfoListToAddressList;
+import org.springframework.beans.factory.annotation.Value;
+import java.util.HashMap;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -35,6 +38,14 @@ public class UserService {
     private final PermissionService permissionService;
     private final JwtUtil jwtUtil;
     private final CorePublisherService corePublisherService;
+
+    private final VerificationEmailService verificationEmailService;
+    @Value("${features.ldap.enabled:true}")
+    private boolean ldapEnabled;
+
+    @Value("${app.email-verification.expiration-ms}")
+    private long verificationExpMs;
+
 
     public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
     public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
@@ -162,6 +173,21 @@ public class UserService {
         return raw.trim().toUpperCase();
     }
 
+    private void sendVerification(com.reparaya.users.entity.User savedUser) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("purpose", "verify_email"); // para distinguir el uso del token
+
+        // subject = email del usuario (así despues podemos validamos contra ese email)
+        String token = jwtUtil.generateTokenWithClaims(
+                claims,
+                savedUser.getEmail(),
+                verificationExpMs // ej. 24h (config en application.properties)
+        );
+
+        verificationEmailService.sendVerificationEmail(savedUser.getEmail(), token);
+    }
+
+
     public void registerUserFromEvent(RegisterRequest request, CoreMessage event) {
 
         User savedUser = createUser(request, event.getDestination());
@@ -174,7 +200,8 @@ public class UserService {
 
         corePublisherService.sendUserCreatedToCore(response);
 
-        activateUserAfterRegistration(savedUser.getUserId());
+        sendVerification(savedUser);
+
     }
 
     @Transactional
@@ -189,18 +216,6 @@ public class UserService {
         userRepository.save(user);
     }
 
-    @Transactional
-    public void activateUserAfterRegistration(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
-        if (!user.getActive()) {
-            user.setActive(true);
-            user.setUpdatedAt(LocalDateTime.now());
-            userRepository.save(user);
-        }
-    }
-
-
     public RegisterResponse registerUser(RegisterRequest request) {
 
         User savedUser = createUser(request, null);
@@ -213,7 +228,7 @@ public class UserService {
 
         corePublisherService.sendUserCreatedToCore(response);
 
-        // TODO: enviar email
+        sendVerification(savedUser);
 
         return response;
     }
@@ -266,7 +281,6 @@ public class UserService {
                 SUCCESS_LOGIN
         );
     }
-
 
     public boolean validateTokenAndUser(String token, String email) {
         return jwtUtil.validateToken(token, email);
