@@ -25,7 +25,6 @@ import java.util.Map;
 import static com.reparaya.users.mapper.AddressMapper.mapAddressInfoListToAddressList;
 import org.springframework.beans.factory.annotation.Value;
 import java.util.HashMap;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -140,7 +139,7 @@ public class UserService {
                 .dni(savedUser.getDni())
                 .active(savedUser.getActive())
                 .build();
-                
+
             ldapUserService.createUserInLdap(ldapUser, request.getPassword());
 
         } catch (Exception e) {
@@ -150,6 +149,7 @@ public class UserService {
         }
 
         return savedUser;
+
     }
 
     private UserDto mapUserToDto(User user) {
@@ -236,7 +236,7 @@ public class UserService {
 
     public LoginResponse authenticateUser(LoginRequest request) {
         boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail(), request.getPassword());
-        
+
         if (!ldapAuthSuccess) {
             log.warn("Autenticación LDAP fallida para usuario: {}", request.getEmail());
             return new LoginResponse(null, null, "Credenciales inválidas");
@@ -408,4 +408,6 @@ public class UserService {
         user.setActive(request.isActive());
         user.setUpdatedAt(LocalDateTime.now());
     }
+
+
 }
