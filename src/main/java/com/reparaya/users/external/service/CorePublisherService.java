@@ -23,10 +23,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class CorePublisherService {
-    // TODO: store api key in env
-
-    @Value("api.core.key")
-    private final String API_KEY;
+    @Value("${api.core.key}")
+    private String apiKey;
 
     private final String CORE_EVENT_PUBLISH_URL = "https://nonprodapi.uade-corehub.com/publish";
 
@@ -37,7 +35,7 @@ public class CorePublisherService {
         RestTemplate rt = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("x-api-key", API_KEY);
+        headers.add("x-api-key", apiKey);
 
         Map<String, Object> userData = new HashMap<>();
 
@@ -76,7 +74,7 @@ public class CorePublisherService {
         RestTemplate rt = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("x-api-key", API_KEY);
+        headers.add("x-api-key", apiKey);
 
         Map<String, Object> payload = Map.of(
                 "message", "Usuario dado de baja exitosamente",
@@ -105,7 +103,7 @@ public class CorePublisherService {
         RestTemplate rt = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("x-api-key", API_KEY);
+        headers.add("x-api-key", apiKey);
 
         Map<String, Object> userData = new HashMap<>();
 
@@ -141,7 +139,7 @@ public class CorePublisherService {
         RestTemplate rt = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("x-api-key", API_KEY);
+        headers.add("x-api-key", apiKey);
 
         Map<String, Object> payload = Map.of(
                 "message", "Usuario rechazado. Motivo: " + errorMessage,
