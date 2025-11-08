@@ -1,11 +1,18 @@
 package com.reparaya.users.service;
 
+import com.reparaya.users.entity.User;
+import com.reparaya.users.repository.UserRepository;
+import com.reparaya.users.util.JwtUtil;
 import com.resend.Resend;
 import com.resend.services.emails.model.CreateEmailOptions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -20,6 +27,9 @@ public class VerificationEmailService {
 
     @Value("${app.frontend.base-url}")
     private String frontBaseUrl;
+
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
     public void sendVerificationEmail(String toEmail, String token) {
         String verifyUrl ="http://localhost:5173/verify?token=" + token;
@@ -50,5 +60,29 @@ public class VerificationEmailService {
         } catch (Exception e) {
             log.error("Error sending verification email to {}: {}", toEmail, e.getMessage());
         }
+    }
+
+    public ResponseEntity<String> verifyEmail(String token) {
+        String email = jwtUtil.extractEmail(token);
+        Boolean ok = jwtUtil.validateToken(token, email);
+        // ademas valida 'purpose'
+        String purpose = jwtUtil.extractClaim(token, "purpose", String.class);
+        if (!Boolean.TRUE.equals(ok) || !"verify_email".equals(purpose)) {
+            return ResponseEntity.badRequest().body("Token inválido o expirado");
+        }
+
+        Optional<User> opt = userRepository.findByEmail(email);
+        if (opt.isEmpty()) return ResponseEntity.badRequest().body("El usuario no existe en el sistema.");
+
+        User u = opt.get();
+        if (Boolean.TRUE.equals(u.getActive())) {
+            return ResponseEntity.ok("El usuario ya estaba activo.");
+        }
+
+        u.setActive(true);
+        u.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(u);
+
+        return ResponseEntity.ok("Usuario activado con éxito.");
     }
 }
