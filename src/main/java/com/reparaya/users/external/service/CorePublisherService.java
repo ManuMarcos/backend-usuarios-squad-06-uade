@@ -6,6 +6,7 @@ import com.reparaya.users.dto.RegisterResponse;
 import com.reparaya.users.dto.UpdateUserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -23,7 +24,9 @@ import java.util.UUID;
 @Slf4j
 public class CorePublisherService {
     // TODO: store api key in env
-    public static final String API_KEY = "ch_9aa39636744843d880a69e45cd08f1ab";
+
+    @Value("api.core.key")
+    private final String API_KEY;
 
     private final String CORE_EVENT_PUBLISH_URL = "https://nonprodapi.uade-corehub.com/publish";
 
