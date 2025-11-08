@@ -26,7 +26,7 @@ public class CorePublisherService {
     @Value("${api.core.key}")
     private String apiKey;
 
-    private final String CORE_EVENT_PUBLISH_URL = "https://nonprodapi.uade-corehub.com/publish";
+    private final String CORE_EVENT_PUBLISH_URL = "https://api.arreglacore.click/publish";
 
 
     public void sendUserCreatedToCore(RegisterResponse registerResponse) {
