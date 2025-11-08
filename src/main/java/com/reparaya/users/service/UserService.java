@@ -39,8 +39,6 @@ public class UserService {
     private final CorePublisherService corePublisherService;
 
     private final VerificationEmailService verificationEmailService;
-    @Value("${features.ldap.enabled:true}")
-    private boolean ldapEnabled;
 
     @Value("${app.email-verification.expiration-ms}")
     private long verificationExpMs;
