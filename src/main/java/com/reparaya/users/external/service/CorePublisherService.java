@@ -1,7 +1,6 @@
 package com.reparaya.users.external.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.reparaya.users.dto.CoreMessage;
 import com.reparaya.users.dto.RegisterResponse;
 import com.reparaya.users.dto.UpdateUserResponse;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.OffsetDateTime;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -48,7 +46,6 @@ public class CorePublisherService {
         // puede que vengan null las zonas y skills
         userData.put("zones", registerResponse.getZones());
         userData.put("skills", registerResponse.getSkills());
-
 
 
         Map<String, Object> body = Map.of(
@@ -127,8 +124,7 @@ public class CorePublisherService {
         );
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        log.info("Sending user updated event to core with messageId: {} and email_ {}", messageId, updateResponse.getUser().getEmail());
-
+        log.info("Sending user updated event to core with messageId: {} and email: {}", messageId, updateResponse.getUser().getEmail());
         String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
         log.info("Received user updated response from core: {} for messageId: {}", response, messageId);
     }
