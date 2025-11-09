@@ -2,9 +2,11 @@ package com.reparaya.users.service;
 
 import com.reparaya.users.dto.*;
 import com.reparaya.users.entity.Address;
+import com.reparaya.users.entity.Role;
 import com.reparaya.users.entity.User;
 import com.reparaya.users.external.service.CorePublisherService;
 import com.reparaya.users.mapper.AddressMapper;
+import com.reparaya.users.repository.RoleRepository;
 import com.reparaya.users.repository.UserRepository;
 import com.reparaya.users.util.JwtUtil;
 import com.reparaya.users.util.RegisterOriginEnum;
@@ -14,13 +16,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.reparaya.users.entity.Role;
-import com.reparaya.users.repository.RoleRepository;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.Map;
 
 import static com.reparaya.users.mapper.AddressMapper.mapAddressInfoListToAddressList;
 
@@ -57,7 +56,7 @@ public class UserService {
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No registered users found.");
     }
-    
+
     @Transactional(readOnly = true)
     public Optional<User> getUserEntityById(Long id) {
         return userRepository.findById(id);
@@ -81,7 +80,7 @@ public class UserService {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("El email ya está registrado: " + request.getEmail());
         }
-        
+
         if (ldapUserService.userExistsInLdap(request.getEmail())) {
             throw new IllegalArgumentException("El email ya existe en LDAP: " + request.getEmail());
         }
@@ -102,18 +101,18 @@ public class UserService {
         }
 
         User newUser = User.builder()
-            .email(request.getEmail())
-            .firstName(request.getFirstName())
-            .lastName(request.getLastName())
-            .phoneNumber(request.getPhoneNumber())
-            .role(role)
-            .dni(request.getDni())
-            .active(false)
-            .registerOrigin(origin)
-            .build();
+                .email(request.getEmail())
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .phoneNumber(request.getPhoneNumber())
+                .role(role)
+                .dni(request.getDni())
+                .active(false)
+                .registerOrigin(origin)
+                .build();
 
         if (request.getAddress() != null) {
-            newUser.setAddresses(mapAddressInfoListToAddressList(request.getAddress(), newUser));
+            newUser.setAddress(mapAddressInfoListToAddressList(request.getAddress(), newUser));
         }
 
         User savedUser = userRepository.save(newUser);
@@ -121,15 +120,15 @@ public class UserService {
 
         try {
             User ldapUser = User.builder()
-                .email(savedUser.getEmail())
-                .firstName(savedUser.getFirstName())
-                .lastName(savedUser.getLastName())
-                .phoneNumber(savedUser.getPhoneNumber())
-                .role(savedUser.getRole())
-                .dni(savedUser.getDni())
-                .active(savedUser.getActive())
-                .build();
-                
+                    .email(savedUser.getEmail())
+                    .firstName(savedUser.getFirstName())
+                    .lastName(savedUser.getLastName())
+                    .phoneNumber(savedUser.getPhoneNumber())
+                    .role(savedUser.getRole())
+                    .dni(savedUser.getDni())
+                    .active(savedUser.getActive())
+                    .build();
+
             ldapUserService.createUserInLdap(ldapUser, request.getPassword());
 
         } catch (Exception e) {
@@ -151,7 +150,7 @@ public class UserService {
                 .lastName(user.getLastName())
                 .phoneNumber(user.getPhoneNumber())
                 .dni(user.getDni())
-                .addresses(user.getAddresses() != null ? user.getAddresses().stream().map(AddressMapper::toDto).toList() : Collections.emptyList())
+                .address(user.getAddress() != null ? user.getAddress().stream().map(AddressMapper::toDto).toList() : Collections.emptyList())
                 .build();
     }
 
@@ -221,7 +220,7 @@ public class UserService {
 
     public LoginResponse authenticateUser(LoginRequest request) {
         boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail(), request.getPassword());
-        
+
         if (!ldapAuthSuccess) {
             log.warn("Autenticación LDAP fallida para usuario: {}", request.getEmail());
             return new LoginResponse(null, null, "Credenciales inválidas");
@@ -251,18 +250,18 @@ public class UserService {
         String token = jwtUtil.generateToken(user, permissionsPerModule);
 
         return new LoginResponse(
-            token,
-            UserInfoLoginResponse.builder()
-                    .id(user.getUserId())
-                    .email(user.getEmail())
-                    .firstName(user.getFirstName())
-                    .lastName(user.getLastName())
-                    .phoneNumber(user.getPhoneNumber())
-                    .address(AddressMapper.toDtoList(user.getAddresses()))
-                    .isActive(user.getActive())
-                    .dni(user.getDni())
-                    .role(user.getRole().getName())
-                    .build(),
+                token,
+                UserInfoLoginResponse.builder()
+                        .id(user.getUserId())
+                        .email(user.getEmail())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .phoneNumber(user.getPhoneNumber())
+                        .address(AddressMapper.toDtoList(user.getAddress()))
+                        .isActive(user.getActive())
+                        .dni(user.getDni())
+                        .role(user.getRole().getName())
+                        .build(),
                 SUCCESS_LOGIN
         );
     }
@@ -316,8 +315,8 @@ public class UserService {
 
         if (request.getAddress() != null) {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
-            user.getAddresses().clear();
-            user.getAddresses().addAll(newAddresses);
+            user.getAddress().clear();
+            user.getAddress().addAll(newAddresses);
         }
 
         user.setUpdatedAt(LocalDateTime.now());
@@ -363,8 +362,8 @@ public class UserService {
 
         if (request.getAddress() != null) {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
-            user.getAddresses().clear();
-            user.getAddresses().addAll(newAddresses);
+            user.getAddress().clear();
+            user.getAddress().addAll(newAddresses);
         }
 
         user.setUpdatedAt(LocalDateTime.now());
@@ -383,6 +382,14 @@ public class UserService {
             log.error("Could not update user: {} in ldap", oldEmail);
             throw new RuntimeException("Error al actualizar usuario en LDAP");
         }
+
+        var response = UpdateUserResponse.builder()
+                .zones(new ArrayList<>())
+                .skills(new ArrayList<>())
+                .user(mapUserToDto(updatedUser))
+                .build();
+
+        corePublisherService.sendUserUpdatedToCore(response);
 
         return SUCCESS_USER_UPDATE;
     }
