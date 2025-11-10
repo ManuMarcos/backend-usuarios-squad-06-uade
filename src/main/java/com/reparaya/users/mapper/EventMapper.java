@@ -71,26 +71,27 @@ public class EventMapper {
                 skills = mapper.convertValue(payload.get("habilidades"), new TypeReference<List<Object>>() {});
             }
 
-            return UpdateUserRequest.builder()
+            var requestBuilder = UpdateUserRequest.builder();
+
+            if (state != null || city != null || street != null || number != null) {
+                requestBuilder.address(
+                        List.of(AddressInfo.builder()
+                            .city(city)
+                            .state(state)
+                            .street(street)
+                            .number(number)
+                            .apartment(apartment)
+                            .floor(floor)
+                            .build()));
+            }
+
+            return requestBuilder
                     .userId(userId)
                     .email(email)
                     .password(password)
                     .firstName(firstName)
                     .lastName(lastName)
                     .phoneNumber(phoneNumber)
-                    .address(
-                        List.of(
-                            AddressInfo
-                                    .builder()
-                                    .city(city)
-                                    .state(state)
-                                    .street(street)
-                                    .number(number)
-                                    .apartment(apartment)
-                                    .floor(floor)
-                                    .build()
-                        )
-                    )
                     .zones(zones)
                     .skills(skills)
                     .build();
