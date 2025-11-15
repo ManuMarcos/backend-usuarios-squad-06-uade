@@ -17,6 +17,9 @@ services:
       - LDAP_USER=cn=admin,${LDAP_BASE_DN_PROD}
       - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_PROD}
       - DATASOURCE_URL=${DATASOURCE_URL_PROD}
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+
     ports:
       - "${SERVER_PORT_PROD}:${SERVER_PORT_PROD}"
     restart: unless-stopped
@@ -68,6 +71,8 @@ services:
       - LDAP_USER=cn=admin,${LDAP_BASE_DN_DEV}
       - LDAP_ADMIN_PASSWORD=${LDAP_ADMIN_PASSWORD_DEV}
       - DATASOURCE_URL=${DATASOURCE_URL_DEV}
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
     ports:
       - "${SERVER_PORT_DEV}:${SERVER_PORT_DEV}"
     restart: unless-stopped
