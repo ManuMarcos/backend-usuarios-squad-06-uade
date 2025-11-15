@@ -401,4 +401,14 @@ public class UserService {
         user.setActive(request.isActive());
         user.setUpdatedAt(LocalDateTime.now());
     }
+    
+    @Transactional
+    public void updateUserProfileImage(String email, String profileImageUrl) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario con email " + email + " no encontrado"));
+        user.setProfileImageUrl(profileImageUrl);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+        log.info("Imagen de perfil actualizada para usuario: {}", email);
+    }
 }

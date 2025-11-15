@@ -1,63 +1,49 @@
 package com.reparaya.users.controller;
 
-import com.reparaya.users.dto.PresignUploadReq;
-import com.reparaya.users.service.S3StorageService;
+import com.reparaya.users.service.ProfileImageService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.Map;
 
+@Slf4j
 @Tag(name = "files-controller", description = "Operaciones de archivos (imagen de perfil)")
 @RestController
 @RequestMapping("/api/files")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class FileController {
 
-    private final S3Presigner presigner;
-    private final S3StorageService S3StorageService;
+    private final ProfileImageService profileImageService;
 
-
-    @Operation(summary = "Generar URL prefirmada para subir imagen")
+    @Operation(summary = "Subir imagen de perfil")
     @PostMapping("/presign-upload")
-    public ResponseEntity<?> presignUpload(@RequestBody PresignUploadReq req) {
-
-        String url = S3StorageService.presignedURL(req);
-
-        return ResponseEntity.ok(Map.of(
-                "url", url,
-                "headers", Map.of("Content-Type", req.getContentType())
-        ));
+    public ResponseEntity<?> presignUpload(@RequestParam("file") MultipartFile file) {
+        try {
+            String imageUrl = profileImageService.uploadProfileImage(file);
+            
+            return ResponseEntity.ok(Map.of(
+                    "imageUrl", imageUrl
+            ));
+        } catch (IllegalArgumentException e) {
+            log.warn("Error de validación al subir imagen: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", e.getMessage()));
+        } catch (IllegalStateException e) {
+            log.warn("Error de autenticación al subir imagen: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            log.error("Error al subir imagen de perfil: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Error al subir imagen: " + e.getMessage()));
+        }
     }
-
-//    @Operation(summary = "Generar URL prefirmada para descargar imagen")
-//    @PostMapping("/presign-download")
-//    public ResponseEntity<?> presignDownload(@RequestBody PresignDownloadReq req) {
-//        GetObjectRequest get = GetObjectRequest.builder()
-//                .bucket(bucket)
-//                .key(req.key)
-//                .build();
-//
-//        GetObjectPresignRequest presignReq = GetObjectPresignRequest.builder()
-//                .signatureDuration(Duration.ofSeconds(req.expiresIn == null ? 300 : req.expiresIn))
-//                .getObjectRequest(get)
-//                .build();
-//
-//        URL url = presigner.presignGetObject(presignReq).url();
-//
-//        return ResponseEntity.ok(Map.of("url", url.toString()));
-//    }
-
-//    @Data public static class PresignUploadReq {
-//        public String key;          // ej: users/2/profile.jpg
-//        public String contentType;  // ej: image/jpeg
-//        public Integer expiresIn;   // seg (opcional)
-//    }
-//
-//    @Data public static class PresignDownloadReq {
-//        public String key;          // ej: users/2/profile.jpg
-//        public Integer expiresIn;   // seg (opcional)
-//    }
 }

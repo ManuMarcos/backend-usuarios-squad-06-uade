@@ -1,6 +1,5 @@
 package com.reparaya.users.service;
 
-import com.reparaya.users.controller.FileController;
 import com.reparaya.users.dto.PresignUploadReq;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,15 +7,12 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
-import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import jakarta.annotation.PostConstruct;
 
-
-import java.net.URL;
+import java.net.URI;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -43,7 +39,7 @@ public class S3StorageService {
     @PostConstruct
     void init() {
         if (accessKey == null || accessKey.isBlank() || secretKey == null || secretKey.isBlank()) {
-            throw new IllegalStateException("AWS credentials no configuradas. Revisar AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY.");
+            throw new IllegalStateException("AWS credentials not configured.");
         }
 
         AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKey, secretKey);
@@ -52,55 +48,104 @@ public class S3StorageService {
                 .region(Region.US_EAST_2) 
                 .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
                 .build();
-
-
-//        this.s3 = S3Client.builder()
-//        .region(Region.US_EAST_2)
-//        .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-//        .build();
     }
-//    AwsBasicCredentials awsCreds = AwsBasicCredentials.create(accessKey,secretKey);
-//
-//    private final S3Presigner presigner = S3Presigner.builder()
-//            .region(Region.US_EAST_2)
-//            .credentialsProvider(StaticCredentialsProvider.create(awsCreds))
-//            .build();
-//
-//    private final S3Client s3;
-
-
-//    public URL generateUploadPresignedUrl(String objectKey, String contentType, int minutes) {
-//        PutObjectRequest put = PutObjectRequest.builder()
-//                .bucket(bucket)
-//                .key(objectKey)
-//                .contentType(contentType)
-//                .build();
-//
-//        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
-//                .signatureDuration(Duration.ofMinutes(minutes))
-//                .putObjectRequest(put)
-//                .build();
-//
-//        PresignedPutObjectRequest presigned = presigner.presignPutObject(presignRequest);
-//        return presigned.url();
-//    }
-//
-//    public String buildPublicUrl(String objectKey) {
-//        return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + objectKey;
-//    }
 
     public String presignedURL(PresignUploadReq req) {
         UUID uuid = UUID.randomUUID();
-        PutObjectRequest put = PutObjectRequest.builder()
+        String key = req.getKey() != null ? req.getKey() : uuid.toString();
+        
+        PutObjectRequest.Builder putBuilder = PutObjectRequest.builder()
                 .bucket(bucket)
-                .key(uuid.toString())
-                .build();
+                .key(key);
+        
+        if (req.getContentType() != null) {
+            putBuilder.contentType(req.getContentType());
+        }
+        
+        PutObjectRequest put = putBuilder.build();
 
+        Duration expiration = req.getExpiresIn() != null 
+                ? Duration.ofMinutes(req.getExpiresIn()) 
+                : Duration.ofMinutes(10);
 
         PresignedPutObjectRequest presignedRequest = presigner.presignPutObject(
-                r -> r.signatureDuration(Duration.ofMinutes(10))
+                r -> r.signatureDuration(expiration)
                         .putObjectRequest(put));
 
         return presignedRequest.url().toString();
+    }
+    
+    public String uploadImageToS3(String presignedUrl, byte[] imageBytes, String contentType, String key) {
+        try {
+            URI uri = URI.create(presignedUrl);
+            java.net.URL url = uri.toURL();
+            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);
+            connection.setRequestMethod("PUT");
+            connection.setRequestProperty("Content-Type", contentType);
+            
+            try (java.io.OutputStream os = connection.getOutputStream()) {
+                os.write(imageBytes);
+            }
+            
+            int responseCode = connection.getResponseCode();
+            if (responseCode >= 200 && responseCode < 300) {
+                // Construir la URL pública del objeto
+                return String.format("https://%s.s3.%s.amazonaws.com/%s", bucket, region, key);
+            } else {
+                throw new RuntimeException("Error al subir imagen a S3. Código de respuesta: " + responseCode);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Error al subir imagen a S3: " + e.getMessage(), e);
+        }
+    }
+    
+    public PresignedUrlResult generatePresignedUrlForUser(Long userId, String contentType, String originalFilename) {
+        // Extraer extensión del archivo original
+        String extension = "";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
+        } else {
+            // Si no hay extensión, inferirla del content type
+            if (contentType != null) {
+                if (contentType.contains("jpeg") || contentType.contains("jpg")) {
+                    extension = ".jpg";
+                } else if (contentType.contains("png")) {
+                    extension = ".png";
+                } else if (contentType.contains("gif")) {
+                    extension = ".gif";
+                } else if (contentType.contains("webp")) {
+                    extension = ".webp";
+                } else {
+                    extension = ".jpg"; // default
+                }
+            }
+        }
+        
+        String key = String.format("users/%d/profile-%s%s", userId, UUID.randomUUID(), extension);
+        PresignUploadReq req = new PresignUploadReq();
+        req.setKey(key);
+        req.setContentType(contentType);
+        req.setExpiresIn(10);
+        String presignedUrl = presignedURL(req);
+        return new PresignedUrlResult(presignedUrl, key);
+    }
+    
+    public static class PresignedUrlResult {
+        private final String presignedUrl;
+        private final String key;
+        
+        public PresignedUrlResult(String presignedUrl, String key) {
+            this.presignedUrl = presignedUrl;
+            this.key = key;
+        }
+        
+        public String getPresignedUrl() {
+            return presignedUrl;
+        }
+        
+        public String getKey() {
+            return key;
+        }
     }
 }
