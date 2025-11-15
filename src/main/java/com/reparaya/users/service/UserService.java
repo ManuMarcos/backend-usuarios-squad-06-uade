@@ -34,6 +34,7 @@ public class UserService {
     private final PermissionService permissionService;
     private final JwtUtil jwtUtil;
     private final CorePublisherService corePublisherService;
+    private final S3StorageService s3StorageService;
 
     public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
     public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
@@ -150,6 +151,7 @@ public class UserService {
                 .lastName(user.getLastName())
                 .phoneNumber(user.getPhoneNumber())
                 .dni(user.getDni())
+                .profileImageUrl(user.getProfileImageUrl())
                 .address(user.getAddress() != null ? user.getAddress().stream().map(AddressMapper::toDto).toList() : Collections.emptyList())
                 .build();
     }
@@ -258,6 +260,7 @@ public class UserService {
                         .lastName(user.getLastName())
                         .phoneNumber(user.getPhoneNumber())
                         .address(AddressMapper.toDtoList(user.getAddress()))
+                        .profileImageUrl(user.getProfileImageUrl())
                         .isActive(user.getActive())
                         .dni(user.getDni())
                         .role(user.getRole().getName())
@@ -317,6 +320,22 @@ public class UserService {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
             user.getAddress().clear();
             user.getAddress().addAll(newAddresses);
+        }
+
+        if (request.getProfileImageUrl() != null) {
+            try {
+                // Descargar imagen desde la URL y subirla a S3
+                String s3ImageUrl = s3StorageService.downloadAndUploadImageFromUrl(
+                    request.getProfileImageUrl(), 
+                    user.getUserId()
+                );
+                user.setProfileImageUrl(s3ImageUrl);
+                log.info("Imagen de perfil descargada y subida a S3 para usuario {}: {}", user.getEmail(), s3ImageUrl);
+            } catch (Exception e) {
+                log.error("Error al procesar imagen de perfil desde URL para usuario {}: {}", 
+                    user.getEmail(), e.getMessage(), e);
+                throw new RuntimeException("Error al procesar imagen de perfil: " + e.getMessage(), e);
+            }
         }
 
         user.setUpdatedAt(LocalDateTime.now());

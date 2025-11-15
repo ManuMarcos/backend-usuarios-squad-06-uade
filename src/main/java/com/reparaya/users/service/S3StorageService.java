@@ -131,6 +131,83 @@ public class S3StorageService {
         return new PresignedUrlResult(presignedUrl, key);
     }
     
+    public String downloadAndUploadImageFromUrl(String imageUrl, Long userId) {
+        try {
+            // Descargar la imagen desde la URL
+            URI uri = URI.create(imageUrl);
+            java.net.URL url = uri.toURL();
+            java.net.HttpURLConnection connection = (java.net.HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(10000); // 10 segundos
+            connection.setReadTimeout(10000);
+            
+            // Obtener content type de la respuesta
+            String contentType = connection.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                throw new IllegalArgumentException("La URL no apunta a una imagen válida. Content-Type: " + contentType);
+            }
+            
+            // Leer los bytes de la imagen
+            byte[] imageBytes;
+            try (java.io.InputStream inputStream = connection.getInputStream();
+                 java.io.ByteArrayOutputStream outputStream = new java.io.ByteArrayOutputStream()) {
+                
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+                imageBytes = outputStream.toByteArray();
+            }
+            
+            // Extraer extensión de la URL o inferirla del content type
+            String extension = extractExtensionFromUrl(imageUrl, contentType);
+            String key = String.format("users/%d/profile-%s%s", userId, UUID.randomUUID(), extension);
+            
+            // Generar URL presigned
+            PresignUploadReq req = new PresignUploadReq();
+            req.setKey(key);
+            req.setContentType(contentType);
+            req.setExpiresIn(10);
+            String presignedUrl = presignedURL(req);
+            
+            // Subir a S3
+            return uploadImageToS3(presignedUrl, imageBytes, contentType, key);
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Error al descargar y subir imagen desde URL: " + e.getMessage(), e);
+        }
+    }
+
+    private String extractExtensionFromUrl(String url, String contentType) {
+        try {
+            // Intentar extraer extensión de la URL
+            String path = URI.create(url).getPath();
+            if (path != null && path.contains(".")) {
+                String ext = path.substring(path.lastIndexOf("."));
+                if (ext.length() <= 5) { // Extensiones válidas son cortas
+                    return ext.toLowerCase();
+                }
+            }
+        } catch (Exception e) {
+            // Si falla, continuar con inferencia del content type
+        }
+        
+        // Inferir extensión del content type
+        if (contentType != null) {
+            if (contentType.contains("jpeg") || contentType.contains("jpg")) {
+                return ".jpg";
+            } else if (contentType.contains("png")) {
+                return ".png";
+            } else if (contentType.contains("gif")) {
+                return ".gif";
+            } else if (contentType.contains("webp")) {
+                return ".webp";
+            }
+        }
+        return ".jpg"; // default
+    }
+    
     public static class PresignedUrlResult {
         private final String presignedUrl;
         private final String key;
