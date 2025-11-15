@@ -1,7 +1,6 @@
 package com.reparaya.users.entity;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
-import com.reparaya.users.util.RegisterOriginEnum;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -18,8 +17,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "addresses")
-@EqualsAndHashCode(exclude = "addresses")
+@ToString(exclude = "address")
+@EqualsAndHashCode(exclude = "address")
 public class User {
 
     @Id
@@ -40,7 +39,7 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
-    private List<Address> addresses = new ArrayList<>();
+    private List<Address> address = new ArrayList<>();
 
     @Column(unique = true)
     private String dni;

@@ -195,15 +195,6 @@ public class UserController {
     public ResponseEntity<String> updateUser(
             @PathVariable Long userId,
             @RequestBody @Valid UpdateUserRequest request) {
-//        try {
-//            return ResponseEntity.ok(userService.updateUserPartially(userId, request));
-//        } catch (RuntimeException e) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-//                    .body(e.getMessage());
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(UPDATE_USER_ERROR + e.getMessage());
-//        }
         return ResponseEntity.ok(userService.updateUserPartially(userId, request));
     }
 

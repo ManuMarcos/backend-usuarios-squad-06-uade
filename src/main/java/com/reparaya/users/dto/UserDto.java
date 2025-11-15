@@ -2,7 +2,7 @@ package com.reparaya.users.dto;
 
 import lombok.Builder;
 import lombok.Data;
-import java.time.LocalDateTime;
+
 import java.util.List;
 
 @Data
@@ -13,7 +13,7 @@ public class UserDto {
     private String firstName;
     private String lastName;
     private String phoneNumber;
-    private List<AddressInfo> addresses;
+    private List<AddressInfo> address;
     private String dni;
     private String role;
     private Boolean active;

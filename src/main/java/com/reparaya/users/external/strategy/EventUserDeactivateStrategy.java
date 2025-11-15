@@ -18,7 +18,7 @@ public class EventUserDeactivateStrategy implements EventProcessStrategy {
     @Override
     public boolean handle(CoreMessage event) {
         log.info("Starting event user deactivate strategy");
-        Long userId = Long.valueOf(getUserIdFromDeactivateUserEvent(event));
+        Long userId = Long.valueOf(getUserIdFromCatalogueUserEvent(event.getPayload()));
         try {
             userService.deactivateUserFromEvent(userId);
             corePublisherService.sendUserDeactivatedToCore(userId);

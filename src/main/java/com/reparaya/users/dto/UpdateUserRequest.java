@@ -1,20 +1,22 @@
 package com.reparaya.users.dto;
 
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
+
 import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @Data
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 public class UpdateUserRequest {
+    private Long userId;
     @Email(message = "Formato de email inválido")
     private String email;
     private String password;
