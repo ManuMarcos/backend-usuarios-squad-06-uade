@@ -43,10 +43,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 if (jwtUtil.validateToken(jwt, email)) {
+                    String authority = role;
+                    if (authority == null || authority.isBlank()) {
+                        authority = "ROLE_ANONYMOUS";
+                    } else if (!authority.startsWith("ROLE_")) {
+                        authority = "ROLE_" + authority;
+                    }
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             email,
                             null,
-                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                            Collections.singletonList(new SimpleGrantedAuthority(authority))
                     );
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }

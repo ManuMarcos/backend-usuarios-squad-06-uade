@@ -6,7 +6,7 @@ import com.reparaya.users.service.UserService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import static com.reparaya.users.mapper.EventMapper.getUserIdFromCatalogueUserEvent;
+import static com.reparaya.users.mapper.EventMapper.getUserIdFromDeactivateUserEvent;
 
 @Slf4j
 @AllArgsConstructor
@@ -18,7 +18,7 @@ public class EventUserDeactivateStrategy implements EventProcessStrategy {
     @Override
     public boolean handle(CoreMessage event) {
         log.info("Starting event user deactivate strategy");
-        Long userId = Long.valueOf(getUserIdFromCatalogueUserEvent(event));
+        Long userId = Long.valueOf(getUserIdFromDeactivateUserEvent(event));
         try {
             userService.deactivateUserFromEvent(userId);
             corePublisherService.sendUserDeactivatedToCore(userId);

@@ -35,6 +35,14 @@ public class EventMapper {
         };
     }
 
+    public static String getUserIdFromDeactivateUserEvent(CoreMessage event) {
+        Object idValue = event.getPayload().get("id");
+        if (idValue != null) {
+            return String.valueOf(idValue);
+        }
+        throw new IllegalArgumentException("The user id is required in the payload. Event id: " + event.getMessageId());
+    }
+
     public static String getUserIdFromCatalogueUserEvent(CoreMessage event) {
         String userId = String.valueOf(event.getPayload().get("id_prestador"));
         if (userId != null) {
@@ -69,28 +77,25 @@ public class EventMapper {
                 skills = mapper.convertValue(payload.get("habilidades"), new TypeReference<List<Object>>() {});
             }
 
-            return UpdateUserRequest.builder()
-                    .email(email)
-                    .password(password)
-                    .firstName(firstName)
-                    .lastName(lastName)
-                    .phoneNumber(phoneNumber)
-                    .address(
-                        List.of(
-                            AddressInfo
-                                    .builder()
-                                    .city(city)
-                                    .state(state)
-                                    .street(street)
-                                    .number(number)
-                                    .apartment(apartment)
-                                    .floor(floor)
-                                    .build()
-                        )
-                    )
-                    .zones(zones)
-                    .skills(skills)
+            UpdateUserRequest request = new UpdateUserRequest();
+            request.setEmail(email);
+            request.setPassword(password);
+            request.setFirstName(firstName);
+            request.setLastName(lastName);
+            request.setPhoneNumber(phoneNumber);
+
+            AddressInfo addressInfo = AddressInfo.builder()
+                    .city(city)
+                    .state(state)
+                    .street(street)
+                    .number(number)
+                    .apartment(apartment)
+                    .floor(floor)
                     .build();
+            request.setAddress(List.of(addressInfo));
+            request.setZones(zones);
+            request.setSkills(skills);
+            return request;
         } catch (Exception ex) {
             log.error("Error mapping catalogue payload to UpdateUserRequest: {}", ex.getMessage(), ex);
             throw ex;
@@ -143,30 +148,27 @@ public class EventMapper {
                 skills = mapper.convertValue(payload.get("habilidades"), new TypeReference<List<Object>>() {});
             }
 
-            return RegisterRequest.builder()
-                    .email(email)
-                    .password(password)
-                    .firstName(firstName)
-                    .lastName(lastName)
-                    .dni(dni)
-                    .phoneNumber(phoneNumber)
-                    .address(
-                        List.of(
-                            AddressInfo
-                            .builder()
-                            .city(city)
-                            .state(state)
-                            .street(street)
-                            .number(number)
-                            .apartment(apartment)
-                            .floor(floor)
-                            .build()
-                        )
-                    )
-                    .role("PRESTADOR")
-                    .zones(zones)
-                    .skills(skills)
+            AddressInfo addressInfo = AddressInfo.builder()
+                    .city(city)
+                    .state(state)
+                    .street(street)
+                    .number(number)
+                    .apartment(apartment)
+                    .floor(floor)
                     .build();
+
+            RegisterRequest request = new RegisterRequest();
+            request.setEmail(email);
+            request.setPassword(password);
+            request.setFirstName(firstName);
+            request.setLastName(lastName);
+            request.setDni(dni);
+            request.setPhoneNumber(phoneNumber);
+            request.setAddress(List.of(addressInfo));
+            request.setRole("PRESTADOR");
+            request.setZones(zones);
+            request.setSkills(skills);
+            return request;
         } catch (Exception ex) {
             log.error("Error mapping catalogue payload to RegisterRequest: {}", ex.getMessage(), ex);
             throw ex;

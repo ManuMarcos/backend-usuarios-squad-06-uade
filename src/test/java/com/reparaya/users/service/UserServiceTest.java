@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -51,6 +52,7 @@ class UserServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private LdapUserService ldapUserService;
     @Mock private JwtUtil jwtUtil;
+    @Mock private PermissionService permissionService;
     @Mock private RoleRepository roleRepository;
     @Mock private CorePublisherService corePublisherService;
 
@@ -337,7 +339,8 @@ class UserServiceTest {
         user.setAddresses(Collections.emptyList());
 
         when(userRepository.findByEmail("auth@example.com")).thenReturn(Optional.of(user));
-        when(jwtUtil.generateToken("auth@example.com", "ROLE_USER")).thenReturn("jwt-token");
+        when(permissionService.getPermissionsForUser(25L)).thenReturn(Collections.emptyMap());
+        when(jwtUtil.generateToken(any(User.class), anyMap())).thenReturn("jwt-token");
 
         LoginResponse response = userService.authenticateUser(request);
 
@@ -347,7 +350,8 @@ class UserServiceTest {
         assertEquals("auth@example.com", response.getUserInfo().getEmail());
         assertEquals(UserService.SUCCESS_LOGIN, response.getMessage());
 
-        verify(jwtUtil).generateToken("auth@example.com", "ROLE_USER");
+        verify(jwtUtil).generateToken(argThat(u -> "auth@example.com".equals(u.getEmail())
+                && "ROLE_USER".equals(u.getRole().getName())), anyMap());
     }
 
     @Test

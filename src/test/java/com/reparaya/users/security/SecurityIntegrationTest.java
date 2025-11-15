@@ -22,6 +22,8 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -93,7 +95,7 @@ class SecurityIntegrationTest {
 
     @Test
     void getUsers_withClientToken_returns403() throws Exception {
-        String token = jwtUtil.generateToken("client@example.com", "CLIENTE");
+        String token = generateTokenFor("client@example.com");
 
         mvc.perform(get("/api/users")
                         .header("Authorization", bearer(token)))
@@ -102,7 +104,7 @@ class SecurityIntegrationTest {
 
     @Test
     void getUsers_withAdminToken_returns200() throws Exception {
-        String token = jwtUtil.generateToken("admin@example.com", "ADMIN");
+        String token = generateTokenFor("admin@example.com");
 
         mvc.perform(get("/api/users")
                         .header("Authorization", bearer(token)))
@@ -111,7 +113,7 @@ class SecurityIntegrationTest {
 
     @Test
     void getUsers_withExpiredToken_returns401() throws Exception {
-        String secret = (String) ReflectionTestUtils.getField(jwtUtil, "secret");
+        String secret = Objects.requireNonNull((String) ReflectionTestUtils.getField(jwtUtil, "secret"), "JWT secret not configured");
         SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
         String token = Jwts.builder()
                 .subject("expired@example.com")
@@ -124,5 +126,10 @@ class SecurityIntegrationTest {
         mvc.perform(get("/api/users")
                         .header("Authorization", bearer(token)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    private String generateTokenFor(String email) {
+        User user = userRepository.findByEmail(email).orElseThrow();
+        return jwtUtil.generateToken(user, Map.of());
     }
 }
