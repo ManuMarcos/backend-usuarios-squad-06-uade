@@ -44,7 +44,7 @@ public class SecurityConfig {
                         "/api/files/presign-upload",
                         "/api/token/validate"
                 ).permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
                 // Endpoints de permisos - ver permisos (todos los roles)
                 .requestMatchers("/api/permissions/user/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
                 .requestMatchers("/api/permissions/all", "/api/permissions/module/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
