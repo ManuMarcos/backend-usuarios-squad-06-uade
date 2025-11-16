@@ -21,7 +21,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 @Tag(name = "user-controller", description = "Operaciones del módulo de Usuarios")
 @RestController
-@CrossOrigin(origins = "https://dev-arreglaya-usuarios.vercel.app")
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
