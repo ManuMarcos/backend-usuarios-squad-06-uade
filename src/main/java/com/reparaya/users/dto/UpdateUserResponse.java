@@ -9,8 +9,7 @@ import java.util.List;
 @Getter
 @AllArgsConstructor
 @Builder
-public class RegisterResponse {
-    private String message;
+public class UpdateUserResponse {
     private UserDto user;
     private List<Object> zones;
     private List<Object> skills;

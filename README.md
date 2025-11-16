@@ -18,6 +18,13 @@ Este backend corre en **Java 21** con **Spring Boot** y expone un servicio RESTf
 
 Este repositorio incluye la especificación **OpenAPI 3.0** de la API de Usuarios en la carpeta:
 
+## 🚀 Cómo correr el proyecto en local
+
+1. Levantar servicios locales de docker
+docker compose up -d ldap-local postgres-local
+
+2. Ejecutar el comando
+mvn "-Dspring-boot.run.profiles=local" "-DskipTests" "spring-boot:run"
 
 ## 🚀 Cómo usar OpenAPI
 

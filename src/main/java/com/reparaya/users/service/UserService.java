@@ -2,22 +2,26 @@ package com.reparaya.users.service;
 
 import com.reparaya.users.dto.*;
 import com.reparaya.users.entity.Address;
+import com.reparaya.users.entity.Role;
 import com.reparaya.users.entity.User;
+import com.reparaya.users.external.service.CorePublisherService;
 import com.reparaya.users.mapper.AddressMapper;
+import com.reparaya.users.repository.RoleRepository;
 import com.reparaya.users.repository.UserRepository;
 import com.reparaya.users.util.JwtUtil;
 import com.reparaya.users.util.RegisterOriginEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.reparaya.users.entity.Role;
-import com.reparaya.users.repository.RoleRepository;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+
+import static com.reparaya.users.mapper.AddressMapper.mapAddressInfoListToAddressList;
 
 @Slf4j
 @Service
@@ -27,12 +31,15 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final LdapUserService ldapUserService;
+    private final PermissionService permissionService;
     private final JwtUtil jwtUtil;
+    private final CorePublisherService corePublisherService;
 
     public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
     public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
     public static final String SUCCESS_USER_UPDATE = "Usuario actualizado con éxito";
     public static final String SUCCESS_LOGIN = "Login exitoso";
+    public static final String USER_NOT_ACTIVE_LOGIN = "Login fallido. El usuario no está activo aún. Reintente nuevamente.";
     public static final String SUCCESS_REGISTER = "Usuario registrado exitosamente.";
 
     private final RoleRepository roleRepository;
@@ -41,10 +48,27 @@ public class UserService {
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
-    
+
+    public List<UserDto> getAllUsersDto() {
+        List<User> users = getAllUsers();
+        if (!users.isEmpty()) {
+            return users.stream().map(u -> getUserDtoById(u.getUserId())).toList();
+        }
+        throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No registered users found.");
+    }
+
     @Transactional(readOnly = true)
-    public Optional<User> getUserById(Long id) {
+    public Optional<User> getUserEntityById(Long id) {
         return userRepository.findById(id);
+    }
+
+    public UserDto getUserDtoById(Long id) {
+        Optional<User> userOpt = getUserEntityById(id);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            return mapUserToDto(user);
+        }
+        throw new RuntimeException("User " + id + " not found");
     }
 
     @Transactional(readOnly = true)
@@ -52,11 +76,11 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
 
-    public User createUser(RegisterRequest request) {
+    public User createUser(RegisterRequest request, CoreMessage.Destination destination) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new IllegalArgumentException("El email ya está registrado: " + request.getEmail());
         }
-        
+
         if (ldapUserService.userExistsInLdap(request.getEmail())) {
             throw new IllegalArgumentException("El email ya existe en LDAP: " + request.getEmail());
         }
@@ -65,40 +89,46 @@ public class UserService {
         Role role = roleRepository.findByName(normalized)
                 .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + normalized));
 
-        User newUser = User.builder()
-            .email(request.getEmail())
-            .firstName(request.getFirstName())
-            .lastName(request.getLastName())
-            .phoneNumber(request.getPhoneNumber())
-            .role(role)
-            .dni(request.getDni())
-            .active(true)
-            .registerOrigin(RegisterOriginEnum.WEB_USUARIOS.name())
-            .build();
+        String origin = RegisterOriginEnum.WEB_USUARIOS.name();
 
-        List<Address> addresses = new ArrayList<>();
-        addresses.add(mapAddress(request.getPrimaryAddressInfo(), newUser)); // siempre obligatoria
-
-        if (request.getSecondaryAddressInfo() != null) {
-            addresses.add(mapAddress(request.getSecondaryAddressInfo(), newUser));
+        if (destination != null) {
+            if (destination.getTopic().equalsIgnoreCase("usuario")) {
+                origin = RegisterOriginEnum.BUSQUEDA_SOLICITUDES.name();
+            }
+            if (destination.getTopic().equalsIgnoreCase("prestador")) {
+                origin = RegisterOriginEnum.CATALOGO.name();
+            }
         }
 
-        newUser.setAddresses(addresses);
+        User newUser = User.builder()
+                .email(request.getEmail())
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .phoneNumber(request.getPhoneNumber())
+                .role(role)
+                .dni(request.getDni())
+                .active(false)
+                .registerOrigin(origin)
+                .build();
+
+        if (request.getAddress() != null) {
+            newUser.setAddress(mapAddressInfoListToAddressList(request.getAddress(), newUser));
+        }
 
         User savedUser = userRepository.save(newUser);
         log.info("Usuario guardado en PostgreSQL: {}", savedUser.getEmail());
 
         try {
             User ldapUser = User.builder()
-                .email(savedUser.getEmail())
-                .firstName(savedUser.getFirstName())
-                .lastName(savedUser.getLastName())
-                .phoneNumber(savedUser.getPhoneNumber())
-                .role(savedUser.getRole())
-                .dni(savedUser.getDni())
-                .active(savedUser.getActive())
-                .build();
-                
+                    .email(savedUser.getEmail())
+                    .firstName(savedUser.getFirstName())
+                    .lastName(savedUser.getLastName())
+                    .phoneNumber(savedUser.getPhoneNumber())
+                    .role(savedUser.getRole())
+                    .dni(savedUser.getDni())
+                    .active(savedUser.getActive())
+                    .build();
+
             ldapUserService.createUserInLdap(ldapUser, request.getPassword());
 
         } catch (Exception e) {
@@ -110,19 +140,17 @@ public class UserService {
         return savedUser;
     }
 
-    private Address mapAddress(AddressInfo dto, User user) {
-        if (dto == null) return null;
-
-        return Address.builder()
-                .state(dto.getState())
-                .city(dto.getCity())
-                .locality(dto.getLocality())
-                .street(dto.getStreet())
-                .number(dto.getNumber())
-                .floor(dto.getFloor())
-                .apartment(dto.getApartment())
-                .postalCode(dto.getPostalCode())
-                .user(user)
+    private UserDto mapUserToDto(User user) {
+        return UserDto.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .role(user.getRole().getName())
+                .active(user.getActive())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .phoneNumber(user.getPhoneNumber())
+                .dni(user.getDni())
+                .address(user.getAddress() != null ? user.getAddress().stream().map(AddressMapper::toDto).toList() : Collections.emptyList())
                 .build();
     }
 
@@ -133,19 +161,66 @@ public class UserService {
         return raw.trim().toUpperCase();
     }
 
+    public void registerUserFromEvent(RegisterRequest request, CoreMessage event) {
+
+        User savedUser = createUser(request, event.getDestination());
+
+        RegisterResponse response = new RegisterResponse(
+                SUCCESS_REGISTER,
+                mapUserToDto(savedUser),
+                request.getZones(),
+                request.getSkills());
+
+        corePublisherService.sendUserCreatedToCore(response);
+
+        activateUserAfterRegistration(savedUser.getUserId());
+    }
+
+    @Transactional
+    public void deactivateUserFromEvent(final Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404), "User not found with id: " + userId));
+        if (!user.getActive()) {
+            log.error("Tried to deactivate an inactive user. User id: {}", userId);
+            throw new IllegalStateException("Cannot deactivate an inactive user. User id: " + userId);
+        }
+        user.setActive(false);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void activateUserAfterRegistration(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+        if (!user.getActive()) {
+            user.setActive(true);
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+        }
+    }
+
 
     public RegisterResponse registerUser(RegisterRequest request) {
-        User savedUser = createUser(request);
-        return new RegisterResponse(
+
+        User savedUser = createUser(request, null);
+
+        RegisterResponse response = new RegisterResponse(
                 SUCCESS_REGISTER,
-            savedUser.getEmail(),
-            savedUser.getRole().getName()
-        );
+                mapUserToDto(savedUser),
+                null,
+                null);
+
+        corePublisherService.sendUserCreatedToCore(response);
+
+        // TODO: enviar email
+
+        return response;
     }
+
 
     public LoginResponse authenticateUser(LoginRequest request) {
         boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail(), request.getPassword());
-        
+
         if (!ldapAuthSuccess) {
             log.warn("Autenticación LDAP fallida para usuario: {}", request.getEmail());
             return new LoginResponse(null, null, "Credenciales inválidas");
@@ -160,24 +235,37 @@ public class UserService {
 
         User user = optUser.get();
 
-        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().getName());
-        
+        if (!user.getActive()) {
+            return new LoginResponse(
+                    null,
+                    null,
+                    USER_NOT_ACTIVE_LOGIN
+            );
+        }
+
+        // "search": ["permission_1", "permission_2", ...],
+        // "catalog": ["permission_3", "permission_4", ...], ...
+        Map<String, List<String>> permissionsPerModule = permissionService.getPermissionsForUser(user.getUserId());
+
+        String token = jwtUtil.generateToken(user, permissionsPerModule);
+
         return new LoginResponse(
-            token,
-            UserInfoLoginResponse.builder()
-                    .id(user.getUserId())
-                    .email(user.getEmail())
-                    .firstName(user.getFirstName())
-                    .lastName(user.getLastName())
-                    .phoneNumber(user.getPhoneNumber())
-                    .address(AddressMapper.toDtoList(user.getAddresses()))
-                    .isActive(user.getActive())
-                    .dni(user.getDni())
-                    .role(user.getRole().getName())
-                    .build(),
+                token,
+                UserInfoLoginResponse.builder()
+                        .id(user.getUserId())
+                        .email(user.getEmail())
+                        .firstName(user.getFirstName())
+                        .lastName(user.getLastName())
+                        .phoneNumber(user.getPhoneNumber())
+                        .address(AddressMapper.toDtoList(user.getAddress()))
+                        .isActive(user.getActive())
+                        .dni(user.getDni())
+                        .role(user.getRole().getName())
+                        .build(),
                 SUCCESS_LOGIN
         );
     }
+
 
     public boolean validateTokenAndUser(String token, String email) {
         return jwtUtil.validateToken(token, email);
@@ -193,7 +281,7 @@ public class UserService {
 
     @Transactional
     public String resetPassword(Long userId, String newPassword) {
-        Optional<User> optUser = getUserById(userId);
+        Optional<User> optUser = getUserEntityById(userId);
 
         if (optUser.isEmpty()) {
             throw new RuntimeException("El usuario con id: " + userId + " no existe.");
@@ -209,31 +297,103 @@ public class UserService {
     }
 
     @Transactional
-    public String updateUserPartially(Long userId, UpdateUserRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+    public UpdateUserResponse updateUserPartiallyFromEvent(UpdateUserRequest request) {
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("Usuario con id " + request.getUserId() + " no encontrado"));
 
-        String email = user.getEmail();
+        String oldEmail = user.getEmail();
 
-        if (request.getEmail() != null) user.setEmail(request.getEmail());
+        if (request.getEmail() != null) {
+            if (!oldEmail.equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+                throw new RuntimeException("El email ya se encuentra registrado.");
+            }
+            user.setEmail(request.getEmail());
+        }
         if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
         if (request.getLastName() != null) user.setLastName(request.getLastName());
         if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
-        if (request.getDni() != null) user.setDni(request.getDni());
+
+        if (request.getAddress() != null) {
+            List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
+            user.getAddress().clear();
+            user.getAddress().addAll(newAddresses);
+        }
 
         user.setUpdatedAt(LocalDateTime.now());
         User updatedUser = userRepository.save(user);
 
-        log.info("Usuario parcialmente actualizado: {}", updatedUser.getEmail());
+        log.info("Partially updated user: {}", updatedUser.getEmail());
 
-        boolean ldapUpdated = ldapUserService.updateUserInLdap(email, updatedUser);
+        boolean ldapUpdated;
+
+        if (request.getPassword() != null) {
+            ldapUpdated = ldapUserService.updateUserInLdapWithNewPwd(oldEmail, updatedUser, request.getPassword());
+        } else {
+            ldapUpdated = ldapUserService.updateUserInLdap(oldEmail, updatedUser);
+        }
         if (!ldapUpdated) {
-            log.error("No se pudo actualizar el usuario en LDAP: {}", email);
+            log.error("Could not update user: {} in ldap", oldEmail);
             throw new RuntimeException("Error al actualizar usuario en LDAP");
         }
 
+        return UpdateUserResponse.builder()
+                .user(mapUserToDto(updatedUser))
+                .zones(request.getZones())
+                .skills(request.getSkills())
+                .build();
+    }
+
+    @Transactional
+    public String updateUserPartially(Long userId, UpdateUserRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+
+        String oldEmail = user.getEmail();
+
+        if (request.getEmail() != null) {
+            if (!oldEmail.equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+                throw new RuntimeException("El email ya se encuentra registrado.");
+            }
+            user.setEmail(request.getEmail());
+        }
+        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) user.setLastName(request.getLastName());
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
+
+        if (request.getAddress() != null) {
+            List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
+            user.getAddress().clear();
+            user.getAddress().addAll(newAddresses);
+        }
+
+        user.setUpdatedAt(LocalDateTime.now());
+        User updatedUser = userRepository.save(user);
+
+        log.info("Partially updated user: {}", updatedUser.getEmail());
+
+        boolean ldapUpdated;
+
+        if (request.getPassword() != null) {
+            ldapUpdated = ldapUserService.updateUserInLdapWithNewPwd(oldEmail, updatedUser, request.getPassword());
+        } else {
+            ldapUpdated = ldapUserService.updateUserInLdap(oldEmail, updatedUser);
+        }
+        if (!ldapUpdated) {
+            log.error("Could not update user: {} in ldap", oldEmail);
+            throw new RuntimeException("Error al actualizar usuario en LDAP");
+        }
+
+        var response = UpdateUserResponse.builder()
+                .zones(new ArrayList<>())
+                .skills(new ArrayList<>())
+                .user(mapUserToDto(updatedUser))
+                .build();
+
+        corePublisherService.sendUserUpdatedToCore(response);
+
         return SUCCESS_USER_UPDATE;
     }
+
 
     public void changeUserIsActive(Long userId, UserChangeActiveRequest request) {
         User user = userRepository.findById(userId)

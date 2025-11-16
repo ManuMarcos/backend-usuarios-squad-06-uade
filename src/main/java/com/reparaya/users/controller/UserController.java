@@ -1,8 +1,8 @@
 package com.reparaya.users.controller;
 
 import java.util.List;
-import java.util.Optional;
 
+import com.reparaya.users.dto.*;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import org.springframework.http.HttpStatus;
@@ -15,14 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.reparaya.users.dto.LoginRequest;
-import com.reparaya.users.dto.LoginResponse;
-import com.reparaya.users.dto.RegisterRequest;
-import com.reparaya.users.dto.RegisterResponse;
-import com.reparaya.users.dto.ResetPasswordRequest;
-import com.reparaya.users.dto.UpdateUserRequest;
-import com.reparaya.users.dto.UserChangeActiveRequest;
-import com.reparaya.users.entity.User;
 import com.reparaya.users.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,12 +41,12 @@ public class UserController {
     responses = {
         @ApiResponse(responseCode = "200", description = "OK",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = com.reparaya.users.entity.User.class)))
+                schema = @Schema(implementation = com.reparaya.users.dto.UserDto.class)))
         }
     )
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        List<User> users = userService.getAllUsers();
+    public ResponseEntity<List<UserDto>> getAllUsers() {
+        List<UserDto> users = userService.getAllUsersDto();
         return ResponseEntity.ok(users);
     }
 
@@ -65,15 +57,13 @@ public class UserController {
     },
     responses = {
         @ApiResponse(responseCode = "200", description = "OK",
-            content = @Content(schema = @Schema(implementation = com.reparaya.users.entity.User.class))),
+            content = @Content(schema = @Schema(implementation = com.reparaya.users.dto.UserDto.class))),
         @ApiResponse(responseCode = "404", description = "No encontrado")
         }   
     )
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        Optional<User> user = userService.getUserById(id);
-        return user.map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(userService.getUserDtoById(id));
     }
 
     @Operation(
@@ -92,24 +82,22 @@ public class UserController {
                                     "  \"dni\":\"42233698\",\n" +
                                     "  \"phoneNumber\":\"+54 9 11 1111 2222\",\n" +
                                     "  \"role\":\"ADMIN\",\n" +
-                                    "  \"primaryAddressInfo\": {\n" +
-                                    "    \"state\": \"Buenos Aires\",\n" +
-                                    "    \"city\": \"Avellaneda\",\n" +
-                                    "    \"locality\": \"Sarandi\",\n" +
-                                    "    \"street\": \"calle\",\n" +
-                                    "    \"number\": \"123\",\n" +
-                                    "    \"floor\": \"2\",\n" +
-                                    "    \"apartment\": \"C\",\n" +
-                                    "    \"postalCode\": \"1874\"\n" +
-                                    "  },\n" +
-                                    "  \"secondaryAddressInfo\": {\n" +
-                                    "    \"state\": \"Buenos Aires\",\n" +
-                                    "    \"city\": \"Quilmes\",\n" +
-                                    "    \"locality\": \"Quilmes centro\",\n" +
-                                    "    \"street\": \"calle\",\n" +
-                                    "    \"number\": \"321\",\n" +
-                                    "    \"postalCode\": \"1878\"\n" +
-                                    "  }\n" +
+                                    "  \"address\": [\n" +
+                                    "    {\n" +
+                                    "      \"state\": \"Buenos Aires\",\n" +
+                                    "      \"city\": \"Avellaneda\",\n" +
+                                    "      \"street\": \"calle\",\n" +
+                                    "      \"number\": \"123\",\n" +
+                                    "      \"floor\": \"2\",\n" +
+                                    "      \"apartment\": \"B\"\n" +
+                                    "    },\n" +
+                                    "    {\n" +
+                                    "      \"state\": \"Buenos Aires\",\n" +
+                                    "      \"city\": \"Quilmes\",\n" +
+                                    "      \"street\": \"siempreviva\",\n" +
+                                    "      \"number\": \"321\"\n" +
+                                    "    }\n" +
+                                    "  ]\n" +
                                     "}"))
             ),
             responses = {
@@ -194,7 +182,7 @@ public class UserController {
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = RegisterRequest.class),
+                            schema = @Schema(implementation = UpdateUserRequest.class),
                             examples = @ExampleObject(value = "{\n  \"firstName\": \"Jane\",\n  \"phoneNumber\": \"+54 11 5555 6666\"\n}"))
             ),
             responses = {
@@ -207,15 +195,7 @@ public class UserController {
     public ResponseEntity<String> updateUser(
             @PathVariable Long userId,
             @RequestBody @Valid UpdateUserRequest request) {
-        try {
-            return ResponseEntity.ok(userService.updateUserPartially(userId, request));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(UPDATE_USER_ERROR + e.getMessage());
-        }
+        return ResponseEntity.ok(userService.updateUserPartially(userId, request));
     }
 
     @Operation(

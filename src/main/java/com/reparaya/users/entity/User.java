@@ -1,11 +1,8 @@
 package com.reparaya.users.entity;
 
-import com.reparaya.users.util.RegisterOriginEnum;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -15,10 +12,13 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = "address")
+@EqualsAndHashCode(exclude = "address")
 public class User {
 
     @Id
@@ -38,8 +38,10 @@ public class User {
     private String phoneNumber;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Address> addresses = new ArrayList<>();
+    @JsonManagedReference
+    private List<Address> address = new ArrayList<>();
 
+    @Column(unique = true)
     private String dni;
 
     @ManyToOne(fetch = FetchType.EAGER, optional = false)

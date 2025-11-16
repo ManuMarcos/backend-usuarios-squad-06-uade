@@ -2,6 +2,7 @@ package com.reparaya.users.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -31,15 +32,25 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                 .requestMatchers(
-                    "/api/users/register",
-                    "/api/users/login",
-                    "/api/users/*/reset-password",
-                    "/api/users/*",
-                    "/v3/api-docs/**",
-                    "/swagger-ui/**",
-                    "/swagger-ui.html",
-                    "/webhook/**"
+                        "/api/users/register",
+                        "/api/users/login",
+                        "/api/users/*/reset-password",
+                        "/v3/api-docs/**",
+                        "/swagger-ui/**",
+                        "/swagger-ui.html",
+                        "/webhook/**",
+                        "/api/token/validate"
                 ).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll()
+                // Endpoints de permisos - ver permisos (todos los roles)
+                .requestMatchers("/api/permissions/user/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
+                .requestMatchers("/api/permissions/all", "/api/permissions/module/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
+                // Endpoints de permisos - gestión (solo ADMIN)
+                .requestMatchers("/api/permissions/user/*/add", "/api/permissions/user/*/remove", "/api/permissions/user/*/sync").hasRole("ADMIN")
+                // Endpoints de usuarios - gestión (solo ADMIN)
+                .requestMatchers("/api/users").hasRole("ADMIN")
+                .requestMatchers("/api/users/*/permissions/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
+                .requestMatchers("/api/users/*/assign-role").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
