@@ -8,20 +8,27 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.MockedConstruction;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class CorePublisherServiceTest {
 
-    private final CorePublisherService service = new CorePublisherService();
+    private CorePublisherService newService() {
+        CorePublisherService service = new CorePublisherService();
+        ReflectionTestUtils.setField(service, "apiKey", "test-key");
+        return service;
+    }
 
     @Test
     void sendUserCreatedToCore_PublishesExpectedPayload() {
@@ -31,7 +38,7 @@ class CorePublisherServiceTest {
                         .email("user@example.com")
                         .firstName("John")
                         .lastName("Doe")
-                        .addresses(List.of(AddressInfo.builder()
+                        .address(List.of(AddressInfo.builder()
                                 .city("CABA")
                                 .state("BA")
                                 .street("Main")
@@ -45,6 +52,7 @@ class CorePublisherServiceTest {
         try (MockedConstruction<RestTemplate> mocked = mockConstruction(RestTemplate.class, (mock, context) ->
                 when(mock.postForObject(anyString(), any(), eq(String.class))).thenReturn("ok"))) {
 
+            CorePublisherService service = newService();
             service.sendUserCreatedToCore(response);
 
             RestTemplate restTemplate = mocked.constructed().get(0);
@@ -53,11 +61,11 @@ class CorePublisherServiceTest {
             ArgumentCaptor<HttpEntity<Map<String, Object>>> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
 
             verify(restTemplate).postForObject(urlCaptor.capture(), entityCaptor.capture(), eq(String.class));
-            assertThat(urlCaptor.getValue()).contains("https://nonprodapi.uade-corehub.com/publish");
+            assertThat(urlCaptor.getValue()).contains("https://api.arreglacore.click/publish");
 
             HttpEntity<Map<String, Object>> entity = entityCaptor.getValue();
             HttpHeaders headers = entity.getHeaders();
-            assertThat(headers.getFirst("x-api-key")).isEqualTo(CorePublisherService.API_KEY);
+            assertThat(headers.getFirst("x-api-key")).isEqualTo("test-key");
             assertThat(headers.getContentType()).isNotNull();
 
             Map<String, Object> body = entity.getBody();
@@ -79,6 +87,7 @@ class CorePublisherServiceTest {
         try (MockedConstruction<RestTemplate> mocked = mockConstruction(RestTemplate.class, (mock, context) ->
                 when(mock.postForObject(anyString(), any(), eq(String.class))).thenReturn("ok"))) {
 
+            CorePublisherService service = newService();
             service.sendUserDeactivatedToCore(99L);
 
             RestTemplate restTemplate = mocked.constructed().get(0);
@@ -100,6 +109,7 @@ class CorePublisherServiceTest {
         try (MockedConstruction<RestTemplate> mocked = mockConstruction(RestTemplate.class, (mock, context) ->
                 when(mock.postForObject(anyString(), any(), eq(String.class))).thenReturn("ok"))) {
 
+            CorePublisherService service = newService();
             service.sendUserRejectedToCore("user@example.com", "error");
 
             RestTemplate restTemplate = mocked.constructed().get(0);

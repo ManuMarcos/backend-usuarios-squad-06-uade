@@ -35,6 +35,14 @@ public class EventMapper {
         };
     }
 
+    public static String getUserIdFromDeactivateUserEvent(CoreMessage event) {
+        Object idValue = event.getPayload().get("id");
+        if (idValue != null) {
+            return String.valueOf(idValue);
+        }
+        throw new IllegalArgumentException("The user id is required in the payload. Event id: " + event.getMessageId());
+    }
+
     public static String getUserIdFromCatalogueUserEvent(Map<String, Object> payload) {
         String userId = String.valueOf(payload.get("id_prestador"));
         if (userId != null) {
@@ -71,7 +79,7 @@ public class EventMapper {
                 skills = mapper.convertValue(payload.get("habilidades"), new TypeReference<List<Object>>() {});
             }
 
-            var requestBuilder = UpdateUserRequest.builder();
+            var requestBuilder = UpdateUserRequest.builder().userId(userId);
 
             if (state != null || city != null || street != null || number != null) {
                 requestBuilder.address(
@@ -86,7 +94,6 @@ public class EventMapper {
             }
 
             return requestBuilder
-                    .userId(userId)
                     .email(email)
                     .password(password)
                     .firstName(firstName)
@@ -95,10 +102,6 @@ public class EventMapper {
                     .zones(zones)
                     .skills(skills)
                     .build();
-            request.setAddress(List.of(addressInfo));
-            request.setZones(zones);
-            request.setSkills(skills);
-            return request;
         } catch (Exception ex) {
             log.error("Error mapping catalogue payload to UpdateUserRequest: {}", ex.getMessage(), ex);
             throw ex;

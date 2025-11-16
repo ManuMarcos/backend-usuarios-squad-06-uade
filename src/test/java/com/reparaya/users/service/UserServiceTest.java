@@ -159,8 +159,8 @@ class UserServiceTest {
         assertNotNull(created);
         assertEquals(42L, created.getUserId());
         assertEquals("new@example.com", created.getEmail());
-        assertEquals(1, created.getAddresses().size());
-        Address storedAddress = created.getAddresses().get(0);
+        assertEquals(1, created.getAddress().size());
+        Address storedAddress = created.getAddress().get(0);
         assertEquals("Avellaneda", storedAddress.getCity());
         assertEquals(created, storedAddress.getUser());
 
@@ -336,7 +336,7 @@ class UserServiceTest {
         user.setRole(role);
         user.setActive(true);
         user.setDni("12345678");
-        user.setAddresses(Collections.emptyList());
+        user.setAddress(Collections.emptyList());
 
         when(userRepository.findByEmail("auth@example.com")).thenReturn(Optional.of(user));
         when(permissionService.getPermissionsForUser(25L)).thenReturn(Collections.emptyMap());
@@ -425,6 +425,14 @@ class UserServiceTest {
         existing.setLastName("Name");
         existing.setPhoneNumber("111");
         existing.setDni("123");
+        Role role = new Role();
+        role.setId(1L);
+        role.setName("ROLE_USER");
+        existing.setRole(role);
+        Role role = new Role();
+        role.setId(1L);
+        role.setName("ROLE_USER");
+        existing.setRole(role);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
         when(userRepository.save(existing)).thenReturn(existing);
@@ -446,12 +454,44 @@ class UserServiceTest {
     }
 
     @Test
+    void updateUserPartially_doesNotChangeRoleOrDni() {
+        Long userId = 25L;
+        Role role = new Role();
+        role.setId(9L);
+        role.setName("ROLE_CLIENTE");
+
+        User existing = new User();
+        existing.setUserId(userId);
+        existing.setEmail("user@example.com");
+        existing.setDni("11112222");
+        existing.setRole(role);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.save(existing)).thenReturn(existing);
+        when(ldapUserService.updateUserInLdap("user@example.com", existing)).thenReturn(true);
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setRole("ROLE_ADMIN");
+        request.setDni("99999999");
+
+        userService.updateUserPartially(userId, request);
+
+        assertEquals("ROLE_CLIENTE", existing.getRole().getName());
+        assertEquals("11112222", existing.getDni());
+        verify(userRepository).save(existing);
+    }
+
+    @Test
     void updateUserPartially_throwsWhenLdapFails() {
         Long userId = 15L;
         User existing = new User();
         existing.setUserId(userId);
         existing.setEmail("old@example.com");
         existing.setFirstName("Old");
+        Role role = new Role();
+        role.setId(1L);
+        role.setName("ROLE_USER");
+        existing.setRole(role);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
         when(userRepository.save(existing)).thenReturn(existing);
