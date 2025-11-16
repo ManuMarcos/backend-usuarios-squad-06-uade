@@ -62,6 +62,64 @@ class PermissionControllerTest {
     }
 
     @Test
+    void getUserPermissionsInModule_returnsList() throws Exception {
+        when(permissionService.getPermissionsForUserInModule(5L, "module_catalog"))
+                .thenReturn(List.of("READ", "WRITE"));
+
+        mockMvc.perform(get("/api/permissions/user/{userId}/module/{moduleCode}", 5L, "module_catalog"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0]").value("READ"))
+                .andExpect(jsonPath("$[1]").value("WRITE"));
+    }
+
+    @Test
+    void getUserPermissionsInModule_handlesException() throws Exception {
+        when(permissionService.getPermissionsForUserInModule(5L, "module_catalog"))
+                .thenThrow(new RuntimeException("boom"));
+
+        mockMvc.perform(get("/api/permissions/user/{userId}/module/{moduleCode}", 5L, "module_catalog"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void hasPermission_returnsBoolean() throws Exception {
+        when(permissionService.hasPermission(8L, "module_catalog", "READ"))
+                .thenReturn(true);
+
+        mockMvc.perform(get("/api/permissions/user/{userId}/module/{moduleCode}/permission/{permission}", 8L, "module_catalog", "READ"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").value(true));
+    }
+
+    @Test
+    void hasPermission_handlesException() throws Exception {
+        when(permissionService.hasPermission(8L, "module_catalog", "READ"))
+                .thenThrow(new RuntimeException("boom"));
+
+        mockMvc.perform(get("/api/permissions/user/{userId}/module/{moduleCode}/permission/{permission}", 8L, "module_catalog", "READ"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void getAllPermissions_returnsList() throws Exception {
+        when(permissionService.getAllPermissionsDto())
+                .thenReturn(List.of(PermissionDto.builder().permissionName("VIEW").moduleCode("catalogue").build()));
+
+        mockMvc.perform(get("/api/permissions/all"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].permissionName").value("VIEW"));
+    }
+
+    @Test
+    void getAllPermissions_handlesException() throws Exception {
+        when(permissionService.getAllPermissionsDto())
+                .thenThrow(new RuntimeException("fail"));
+
+        mockMvc.perform(get("/api/permissions/all"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
     void getPermissionsByModule_returnsList() throws Exception {
         when(permissionService.getPermissionsByModuleDto("catalogue"))
                 .thenReturn(List.of(PermissionDto.builder()

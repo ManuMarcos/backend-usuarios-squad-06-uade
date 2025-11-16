@@ -3,6 +3,7 @@ package com.reparaya.users.mapper;
 import com.reparaya.users.dto.AddressInfo;
 import com.reparaya.users.dto.CoreMessage;
 import com.reparaya.users.dto.RegisterRequest;
+import com.reparaya.users.dto.UpdateUserRequest;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
@@ -93,6 +94,44 @@ class EventMapperTest {
         assertThatThrownBy(() -> EventMapper.mapRegisterRequestFromEvent(event))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("unknown");
+    }
+
+    @Test
+    void mapUpdateRequestFromEvent_PrestadorTopicMapsCataloguePayload() {
+        CoreMessage event = coreMessage("prestador");
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("id_prestador", "77");
+        payload.put("email", "user@example.com");
+        payload.put("nombre", "Cat");
+        payload.put("apellido", "Log");
+        payload.put("telefono", "123");
+        payload.put("password", "Secret");
+        payload.put("estado", "BA");
+        payload.put("ciudad", "CABA");
+        payload.put("calle", "Libertad");
+        payload.put("numero", "100");
+        payload.put("zonas", List.of("NORTE"));
+        payload.put("habilidades", List.of("ELECTRICIDAD"));
+        event.setPayload(payload);
+
+        UpdateUserRequest request = EventMapper.mapUpdateRequestFromEvent(event);
+
+        assertThat(request.getUserId()).isEqualTo(77L);
+        assertThat(request.getEmail()).isEqualTo("user@example.com");
+        assertThat(request.getZones()).containsExactly("NORTE");
+        assertThat(request.getSkills()).containsExactly("ELECTRICIDAD");
+        assertThat(request.getAddress()).singleElement().satisfies(addr ->
+                assertThat(addr.getStreet()).isEqualTo("Libertad"));
+    }
+
+    @Test
+    void mapUpdateRequestFromEvent_UsuarioTopicWithoutUserIdThrows() {
+        CoreMessage event = coreMessage("usuario");
+        event.setPayload(Map.of("email", "user@example.com"));
+
+        assertThatThrownBy(() -> EventMapper.mapUpdateRequestFromEvent(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("userId");
     }
 
     @Test

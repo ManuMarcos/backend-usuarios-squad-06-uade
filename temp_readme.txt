@@ -9,35 +9,18 @@ El backend esta implementado con Java 21 y Spring Boot y expone un servicio REST
 
 ## Ejecutar los tests
 
-> Las suites ahora ejercitan Postgres y LDAP reales. Levanta los contenedores antes de lanzar Maven:
-> ```
-> docker compose up -d postgres-dev ldap-local
-> ```
->
 1. Verifica que tengas Java 21 disponible en tu PATH (el wrapper de Maven incluido en el repo ya lo gestiona).
-2. Desde la raiz del proyecto ejecuta:
+2. Desde la raiz del proyecto ejecuta uno de los siguientes comandos:
    - Linux / macOS: `./mvnw clean test`
-   - Windows (PowerShell o CMD): `./mvnw.cmd clean test`
-3. El detalle por clase queda en `target/surefire-reports/`. Para correr solo una clase usa `./mvnw -Dtest=NombreDeTest test`.
-4. Para el informe navegable ejecuta `./mvnw surefire-report:report` (`./mvnw.cmd surefire-report:report` en Windows) y abre `target/site/surefire-report.html`.
-5. La cobertura se genera con `./mvnw jacoco:report` y se consulta en `target/site/jacoco/index.html`.
+   - Windows (PowerShell o CMD): `.\mvnw.cmd clean test`
+3. Los reportes quedan en `target/surefire-reports/`.
 
-Cuando termines podes liberar recursos con `docker compose stop postgres-dev ldap-local`.
+Para correr una clase de pruebas puntual: `./mvnw -Dtest=NombreDeTest test`.
 
-### Colección Postman / Newman
+¿Querés validar contra los servicios Docker (PostgreSQL/LDAP)? Levantá los contenedores (`docker compose up -d postgres-local ldap-local`) y ejecuta los tests con el perfil `docker` sumado al `test`:
 
-Para ejercitar los flujos principales vía HTTP agregamos una colección en `postman/ArreglaYa-Usuarios.postman_collection.json` y un environment local en `postman/local.postman_environment.json`.
-
-1. Levantá la API (`./mvnw spring-boot:run -Dspring-boot.run.profiles=local`) y los contenedores `postgres-dev` + `ldap-local`.
-2. Importá ambos archivos en Postman y ejecutá la colección completa (los tests crean un usuario, inician sesión, validan permisos y token).
-3. Para automatizarlo desde la terminal podés usar Newman:
-   ```bash
-   npx newman run postman/ArreglaYa-Usuarios.postman_collection.json \
-     -e postman/local.postman_environment.json \
-     --reporters cli,html \
-     --reporter-html-export target/newman/report.html
-   ```
-   El informe HTML queda en `target/newman/report.html` y sirve como evidencia de los inputs y respuestas HTTP.
+- Linux / macOS: `./mvnw "-Dspring.profiles.active=test,docker" test`
+- Windows: `.\mvnw.cmd "-Dspring.profiles.active=test,docker" test`
 
 ## Levantar el proyecto para pruebas manuales
 
@@ -60,6 +43,39 @@ La especificacion OpenAPI 3.0 se encuentra dentro del proyecto. Para consultarla
 
 
 
+apagar docker : docker compose down
+
+levantar docker : docker compose up -d backend-app-dev postgres-dev ldap-dev
+
+.\mvnw.cmd "-Dspring.profiles.active=test,docker" test
+
+.\mvnw surefire-report:report
+
+docker compose exec postgres-dev sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\\dt"'
+
+docker compose logs -f
+
+## Ejecutar tests sin mocks (usando Postgres + LDAP reales)
+
+1. Levantá los servicios de soporte definidos en Docker Compose (PostgreSQL y LDAP). Si querés todo el stack, podés usar:
+   ```
+   docker compose up -d postgres-dev ldap-dev
+   ```
+   (o `postgres-local`/`ldap-local` según el archivo `docker-compose.yml` que estés usando).
+2. Ejecutá los tests activando simultáneamente los perfiles `test` y `docker` para que Spring Boot apunte a los contenedores:
+   - Windows:
+     ```
+     .\mvnw.cmd "-Dspring.profiles.active=test,docker" test
+     ```
+   - Linux / macOS:
+     ```
+     ./mvnw "-Dspring.profiles.active=test,docker" test
+     ```
+   Podés limitarlo a una clase usando `-Dtest=NombreDeTest`.
+3. Al terminar, apagá los servicios con `docker compose down` (o `docker compose stop postgres-dev ldap-dev` si querés dejarlos listos para reusar).
+
+Estas ejecuciones usan los repositorios JPA y el cliente LDAP reales, así que validan la integración sin mocks.
+
 ## Casos cubiertos por las suites de test
 
 - `UserServiceTest`:
@@ -69,16 +85,12 @@ La especificacion OpenAPI 3.0 se encuentra dentro del proyecto. Para consultarla
 - `UserControllerTest` / `SecurityIntegrationTest`:
   - Acceso a `/api/users` según rol y estado del token (sin token, cliente, admin, expirado).
   - Inserción y consulta de usuarios a través de la API REST.
-- `PermissionServiceTest`, `PermissionServiceIntegrationTest`, `PermissionControllerTest` y `PermissionControllerIntegrationTest`:
+- `PermissionServiceTest` y `PermissionControllerTest` + `PermissionControllerIntegrationTest`:
   - Lectura y verificación de permisos agrupados por módulo, asignación/remoción de permisos y sincronización con roles.
-  - Casos de uso funcionando sobre Postgres real (alta/baja de permisos, usuarios inactivos, endpoints HTTP `/api/permissions/...`).
-- `LdapUserServiceTest` y `LdapUserServiceIntegrationTest`:
-  - Creación de usuarios, autenticación y reseteo de contraseñas contra el OpenLDAP levantado por Docker, verificando también la limpieza de los DN.
+  - Endpoints HTTP `/api/permissions/...` con datos persistidos en la BD.
 - `EventMapperTest`, `IncomingEventProcessorTest`, `EventUserRegisterStrategyTest`, `EventUserUpdateStrategyTest`, `EventUserDeactivateStrategyTest`:
   - Mapeo de eventos de alta/modificación/baja, manejo de campos obligatorios y direcciones.
   - Procesamiento de eventos nuevos vs. duplicados, persistencia en `incoming_events`, envío de respuestas a CoreHub.
-- `AddressMapperTest`:
-  - Conversión completa entre `AddressInfo` y entidades `Address`, incluyendo casos nulos y la asociación con el usuario propietario.
 - `JwtUtilTest`:
   - Generación, validación y parsing de JWT (email, rol, expiración, tokens corruptos).
 - `CorePublisherServiceTest`:
@@ -86,7 +98,7 @@ La especificacion OpenAPI 3.0 se encuentra dentro del proyecto. Para consultarla
 - `ValidatorsTest`:
   - Reglas de validación previas al registro (formato de email, obligatoriedad de campos, trims y mensajes de error).
 
-Los reportes detallados quedan en `target/surefire-reports/` (resultado de cada clase) y `target/site/surefire-report.html` (resumen HTML generado con `mvnw surefire-report:report`).
+Los reportes detallados quedan en `target/surefire-reports/` (resultado de cada clase) y `target/reports/surefire.html` (resumen HTML).
 
 ### Resumen por flujo
 
@@ -94,10 +106,8 @@ Los reportes detallados quedan en `target/surefire-reports/` (resultado de cada 
 - **Login:** AutenticaciA3n contra LDAP, manejo de usuarios inexistentes o inactivos y generaciA3n/validaciA3n de JWT (tokens corruptos/expirados).
 - **ModificaciA3n:** ActualizaciA3n parcial (REST + eventos) sin permitir cambios de rol/DNI, sincronizaciA3n con LDAP y manejo de direcciones multiple.
 - **Baja/alta:** Cambios en el flag `active` y propagaciA3n hacia Core/LDAP mediante eventos.
-- **Permisos:** Lectura/gestión de permisos por módulo, sincronización con roles y asignación/remoción persistente usando `/api/permissions`.
-- **Integración LDAP:** Altas, autenticación y reseteo de contraseñas validados contra el OpenLDAP del docker-compose (`ldap-local`).
-
-- **Eventos externos:** Procesamiento idempotente de alta/modificación/baja, persistencia en `incoming_events`, reintento ante duplicados y envío a CoreHub.
+- **Permisos:** Lectura/gestiA3n de permisos por mA3dulo y sincronizaciA3n con roles usando `/api/permissions`.
+- **Eventos externos:** Procesamiento idempotente de alta/modificaciA3n/baja, persistencia en `incoming_events`, reintento ante duplicados y envA-o a CoreHub.
 - **Frontend (React)**:
   - Está en `frontend/Frontend-usuarios-squad-06-uade-main/arreglaya`.
   - Comandos típicos: `npm install`, `npm start` (abre `http://localhost:3000`).

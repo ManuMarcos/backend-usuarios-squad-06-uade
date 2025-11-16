@@ -1,12 +1,14 @@
 package com.reparaya.users.service;
 
 import com.reparaya.users.dto.AddressInfo;
+import com.reparaya.users.dto.CoreMessage;
 import com.reparaya.users.dto.LoginRequest;
 import com.reparaya.users.dto.LoginResponse;
 import com.reparaya.users.dto.RegisterRequest;
 import com.reparaya.users.dto.RegisterResponse;
 import com.reparaya.users.dto.UpdateUserRequest;
 import com.reparaya.users.dto.UserChangeActiveRequest;
+import com.reparaya.users.dto.UserDto;
 import com.reparaya.users.external.service.CorePublisherService;
 import com.reparaya.users.entity.Address;
 import com.reparaya.users.entity.Role;
@@ -22,9 +24,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -42,6 +47,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -69,6 +75,34 @@ class UserServiceTest {
     @AfterEach
     void tearDown() throws Exception {
         mocks.close();
+    }
+
+    @Test
+    void getAllUsersDto_whenRepositoryEmpty_throwsNotFound() {
+        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> userService.getAllUsersDto());
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        verify(userRepository).findAll();
+    }
+
+    @Test
+    void getAllUsersDto_returnsDtosUsingMapper() {
+        User user = new User();
+        user.setUserId(7L);
+        when(userRepository.findAll()).thenReturn(List.of(user));
+
+        UserService spyService = spy(userService);
+        UserDto dto = UserDto.builder().userId(7L).email("user@demo.com").build();
+        doReturn(dto).when(spyService).getUserDtoById(7L);
+
+        List<UserDto> result = spyService.getAllUsersDto();
+
+        assertEquals(1, result.size());
+        assertEquals("user@demo.com", result.get(0).getEmail());
+        verify(userRepository).findAll();
+        verify(spyService).getUserDtoById(7L);
     }
 
     @Test
@@ -216,6 +250,64 @@ class UserServiceTest {
         verify(roleRepository).findByName("MANAGER");
         verify(userRepository, never()).save(any(User.class));
         verify(ldapUserService, never()).createUserInLdap(any(User.class), any());
+    }
+
+    @Test
+    void createUser_whenRoleBlank_throwsException() {
+        RegisterRequest request = mock(RegisterRequest.class);
+        when(request.getEmail()).thenReturn("blank@example.com");
+        when(request.getRole()).thenReturn("   ");
+        when(userRepository.existsByEmail("blank@example.com")).thenReturn(false);
+        when(ldapUserService.userExistsInLdap("blank@example.com")).thenReturn(false);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request, null));
+
+        assertTrue(ex.getMessage().contains("Debe enviar role"));
+        verify(userRepository).existsByEmail("blank@example.com");
+        verify(ldapUserService).userExistsInLdap("blank@example.com");
+        verifyNoInteractions(roleRepository);
+    }
+
+    @Test
+    void createUser_fromPrestadorEventSetsOriginAndAddress() {
+        RegisterRequest request = RegisterRequest.builder()
+                .email("catalog@example.com")
+                .password("Pass12345")
+                .firstName("Cat")
+                .lastName("User")
+                .phoneNumber("555")
+                .dni("12345678")
+                .role("prestador")
+                .address(List.of(AddressInfo.builder()
+                        .state("Buenos Aires")
+                        .city("CABA")
+                        .street("Libertad")
+                        .number("100")
+                        .build()))
+                .build();
+        CoreMessage.Destination destination = new CoreMessage.Destination();
+        destination.setTopic("prestador");
+        destination.setEventName("user_created");
+
+        when(userRepository.existsByEmail("catalog@example.com")).thenReturn(false);
+        when(ldapUserService.userExistsInLdap("catalog@example.com")).thenReturn(false);
+        Role role = Role.builder().id(9L).name("PRESTADOR").build();
+        when(roleRepository.findByName("PRESTADOR")).thenReturn(Optional.of(role));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            saved.setUserId(55L);
+            return saved;
+        });
+
+        User created = userService.createUser(request, destination);
+
+        assertEquals(RegisterOriginEnum.CATALOGO.name(), created.getRegisterOrigin());
+        assertEquals(1, created.getAddress().size());
+        Address mappedAddress = created.getAddress().get(0);
+        assertEquals("CABA", mappedAddress.getCity());
+        assertEquals("Buenos Aires", mappedAddress.getState());
+        verify(userRepository).save(created);
+        verify(ldapUserService).createUserInLdap(any(User.class), eq("Pass12345"));
     }
 
     @Test
@@ -429,10 +521,6 @@ class UserServiceTest {
         role.setId(1L);
         role.setName("ROLE_USER");
         existing.setRole(role);
-        Role role = new Role();
-        role.setId(1L);
-        role.setName("ROLE_USER");
-        existing.setRole(role);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
         when(userRepository.save(existing)).thenReturn(existing);
@@ -471,8 +559,7 @@ class UserServiceTest {
         when(ldapUserService.updateUserInLdap("user@example.com", existing)).thenReturn(true);
 
         UpdateUserRequest request = new UpdateUserRequest();
-        request.setRole("ROLE_ADMIN");
-        request.setDni("99999999");
+        request.setFirstName("Updated");
 
         userService.updateUserPartially(userId, request);
 

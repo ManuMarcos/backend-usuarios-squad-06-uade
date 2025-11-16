@@ -1,0 +1,35 @@
+Reset + Run Todo Desde Cero
+
+Limpiar contenedores y volúmenes
+
+"docker compose down -v postgres-dev ldap-local" (elimina datos previos de Postgres/LDAP).
+"docker compose down" si querés asegurarte de apagar el resto.
+Arrancar servicios de soporte
+
+"docker compose up -d postgres-dev ldap-local"
+Verificá con "docker ps" que ambos estén Up (postgres expone 55432, ldap 389).
+Build y pruebas Maven
+
+"./mvnw clean test"
+Reporte de tests: "./mvnw surefire-report:report" ⇒ target/site/surefire-report.html.
+Cobertura: "./mvnw jacoco:report" ⇒ target/site/jacoco/index.html.
+Arrancar la app (perfil local)
+
+"./mvnw spring-boot:run "-Dspring-boot.run.profiles=local""
+Esperá el log “Tomcat started on port 8081”.
+Colección Postman/Newman (API end-to-end)
+
+Con la app corriendo, ejecutá:
+"npx newman run postman/ArreglaYa-Usuarios.postman_collection.json `
+  -e postman/local.postman_environment.json `
+  --reporters cli,html `
+  --reporter-html-export target/newman/report.html"
+El HTML queda en target/newman/report.html.
+(Opcional) Evidencias manuales
+
+Usá curl o Postman para cualquier request adicional y guardá los responses que necesites.
+Revisa los logs (docker compose logs postgres-dev, ldap-local, o la consola de Spring Boot) si querés adjuntar trazas.
+Detener todo
+
+Ctrl+C para bajar Spring Boot.
+docker compose stop postgres-dev ldap-local (o docker compose down si querés limpiar).
