@@ -141,7 +141,7 @@ public class UserService {
         return savedUser;
     }
 
-    private UserDto mapUserToDto(User user) {
+    UserDto mapUserToDto(User user) {
         return UserDto.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
@@ -422,12 +422,13 @@ public class UserService {
     }
     
     @Transactional
-    public void updateUserProfileImage(String email, String profileImageUrl) {
+    public User updateUserProfileImage(String email, String profileImageUrl) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Usuario con email " + email + " no encontrado"));
         user.setProfileImageUrl(profileImageUrl);
         user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
+        var userUpdated = userRepository.save(user);
         log.info("Imagen de perfil actualizada para usuario: {}", email);
+        return userUpdated;
     }
 }
