@@ -63,4 +63,7 @@ public class User {
     @Column(name = "register_origin")
     private String registerOrigin;
 
+    @Column(name = "profile_image_url", length = 255)
+    private String profileImageUrl;
+
 }

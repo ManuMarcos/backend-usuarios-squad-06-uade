@@ -17,4 +17,5 @@ public class UserDto {
     private String dni;
     private String role;
     private Boolean active;
+    private String profileImageUrl;
 }

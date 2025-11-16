@@ -43,11 +43,13 @@ public class SecurityConfig {
                     .requestMatchers(
                         "/api/users/register",
                         "/api/users/login",
-                        "/api/users/*/reset-password",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/webhook/**",
+                        "/api/token/**",
+                        "/webhook/**",
+                        "/api/files/presign-upload",
                         "/api/token/validate"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll()
@@ -60,6 +62,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/users").hasRole("ADMIN")
                 .requestMatchers("/api/users/*/permissions/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
                 .requestMatchers("/api/users/*/assign-role").hasRole("ADMIN")
+                .requestMatchers("/api/users/*/profile-image/presign").authenticated()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
