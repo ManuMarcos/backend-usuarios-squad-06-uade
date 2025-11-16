@@ -42,12 +42,12 @@ public class SecurityConfig {
                     .requestMatchers(
                         "/api/users/register",
                         "/api/users/login",
+                        "/api/users/*/reset-password",
                         "/v3/api-docs/**",
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/webhook/**",
                         "/api/token/**",
-                        "/webhook/**",
                         "/api/files/presign-upload",
                         "/api/token/validate"
                 ).permitAll()
@@ -67,6 +67,24 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList(
+                "https://dev-arreglaya-usuarios.vercel.app",
+                "http://localhost:3000",
+                "http://localhost:5173"
+        ));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
 }
