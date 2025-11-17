@@ -160,7 +160,7 @@ public class UserController {
                     required = true,
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ResetPasswordRequest.class),
-                            examples = @ExampleObject(value = "{\n  \"newPassword\": \"Nuev4P4ss!\"\n}"))
+                            examples = @ExampleObject(value = "{\n  \"email\": \"email@email.com\"\n \"oldPassword\": \"Nuev4P4ss!\"\n \"newPassword\":\"P4ssw0rd!\"\n}"))
             ),
             responses = {
                     @ApiResponse(responseCode = "200", description = "Contraseña cambiada",
@@ -168,9 +168,18 @@ public class UserController {
                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
             }
     )
-    @PatchMapping("/{userId}/reset-password")
-    public ResponseEntity<String> resetPassword(@PathVariable Long userId, @RequestBody ResetPasswordRequest request) {
-        return ResponseEntity.ok(userService.resetPassword(userId, request.getNewPassword()));
+    @PatchMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            var response = userService.resetPassword(request);
+            return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ex.getMessage());
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ex.getMessage());
+        }
     }
 
     @Operation(
