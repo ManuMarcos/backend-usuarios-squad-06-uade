@@ -39,10 +39,6 @@ public class ProfileImageService {
             throw new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario no encontrado con email: " + email);
         }
 
-        if (!userOpt.get().getEmail().equalsIgnoreCase(email) && !ADMIN_ROLE.equalsIgnoreCase(userOpt.get().getRole().getName())) {
-            throw new IllegalStateException("Solo un usuario administrador o el usuario correspondiente puede editar la imagen de perfil.");
-        }
-
         Long userId = userOpt.get().getUserId();
         String contentType = file.getContentType();
 
