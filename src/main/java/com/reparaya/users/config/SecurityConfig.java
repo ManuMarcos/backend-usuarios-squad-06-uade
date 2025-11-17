@@ -44,7 +44,9 @@ public class SecurityConfig {
                         "/webhook/**",
                         "/api/token/**",
                         "/api/files/presign-upload",
-                        "/api/token/validate"
+                        "/api/token/validate",
+                        "/api/users/forgot-password",
+                        "/api/users/reset-password"
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
                 // Endpoints de permisos - ver permisos (todos los roles)
@@ -57,6 +59,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/*/permissions/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
                 .requestMatchers("/api/users/*/assign-role").hasRole("ADMIN")
                 .requestMatchers("/api/users/*/profile-image/presign").authenticated()
+                .requestMatchers("/api/users/change-password").authenticated()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -3,6 +3,7 @@ package com.reparaya.users.controller;
 import java.util.List;
 
 import com.reparaya.users.dto.*;
+import com.reparaya.users.service.PasswordResetService;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.server.ResponseStatusException;
+
 @Tag(name = "user-controller", description = "Operaciones del módulo de Usuarios")
 @RestController
 @RequestMapping("/api/users")
@@ -28,6 +32,7 @@ public class UserController {
 
     public static final String UPDATE_USER_ERROR = "Error al actualizar el usuario. ";
     private final UserService userService;
+    private final PasswordResetService passwordResetService;
 
     @Operation(
     summary = "Listar usuarios",
@@ -109,6 +114,9 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(RegisterResponse.builder().message(e.getMessage()).build());
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(RegisterResponse.builder().message(e.getMessage()).build());
         }
     }
 
@@ -147,14 +155,13 @@ public class UserController {
     }
 
     @Operation(
-            summary = "Resetear contraseña",
+            summary = "Cambiar contraseña",
             description = "Actualiza la contraseña del usuario indicado.",
-            parameters = @Parameter(name = "userId", description = "ID del usuario", example = "42"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ResetPasswordRequest.class),
-                            examples = @ExampleObject(value = "{\n  \"newPassword\": \"Nuev4P4ss!\"\n}"))
+                            examples = @ExampleObject(value = "{\n  \"email\": \"email@email.com\"\n \"oldPassword\": \"Nuev4P4ss!\"\n \"newPassword\":\"P4ssw0rd!\"\n}"))
             ),
             responses = {
                     @ApiResponse(responseCode = "200", description = "Contraseña cambiada",
@@ -162,9 +169,18 @@ public class UserController {
                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
             }
     )
-    @PatchMapping("/{userId}/reset-password")
-    public ResponseEntity<String> resetPassword(@PathVariable Long userId, @RequestBody ResetPasswordRequest request) {
-        return ResponseEntity.ok(userService.resetPassword(userId, request.getNewPassword()));
+    @PatchMapping("/change-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            var response = userService.resetPassword(request);
+            return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ex.getMessage());
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ex.getMessage());
+        }
     }
 
     @Operation(
@@ -189,7 +205,16 @@ public class UserController {
     public ResponseEntity<String> updateUser(
             @PathVariable Long userId,
             @RequestBody @Valid UpdateUserRequest request) {
-        return ResponseEntity.ok(userService.updateUserPartially(userId, request));
+        try {
+            var response = userService.updateUserPartially(userId, request);
+            return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ex.getMessage());
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ex.getMessage());
+        }
     }
 
     @Operation(
@@ -214,5 +239,18 @@ public class UserController {
         userService.changeUserIsActive(userId, request);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        passwordResetService.createAndSendResetToken(request.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody ResetForgotPasswordRequest request) {
+        passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok().build();
+    }
+
 
 }

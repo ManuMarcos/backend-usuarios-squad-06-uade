@@ -1,14 +1,20 @@
 package com.reparaya.users.service;
 
+import com.reparaya.users.dto.UpdateUserResponse;
+import com.reparaya.users.external.service.CorePublisherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.NoSuchElementException;
+import java.util.ArrayList;
+
+import static com.reparaya.users.service.UserService.ADMIN_ROLE;
 
 @Slf4j
 @Service
@@ -17,6 +23,7 @@ public class ProfileImageService {
 
     private final S3StorageService s3StorageService;
     private final UserService userService;
+    private final CorePublisherService corePublisherService;
 
     @Transactional
     public String uploadProfileImage(MultipartFile file) {
@@ -25,10 +32,11 @@ public class ProfileImageService {
 
         // Obtener usuario autenticado
         String email = getAuthenticatedUserEmail();
+
         var userOpt = userService.getUserByEmail(email);
         
         if (userOpt.isEmpty()) {
-            throw new NoSuchElementException("Usuario no encontrado con email: " + email);
+            throw new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario no encontrado con email: " + email);
         }
 
         Long userId = userOpt.get().getUserId();
@@ -61,7 +69,15 @@ public class ProfileImageService {
         log.info("Imagen subida exitosamente a S3: {}", imageUrl);
 
         // Actualizar el usuario con la URL de la imagen
-        userService.updateUserProfileImage(email, imageUrl);
+        var updatedUser = userService.updateUserProfileImage(email, imageUrl);
+
+        var responseToCore = UpdateUserResponse.builder()
+                .zones(new ArrayList<>())
+                .skills(new ArrayList<>())
+                .user(userService.mapUserToDto(updatedUser))
+                .build();
+
+        corePublisherService.sendUserUpdatedToCore(responseToCore);
 
         return imageUrl;
     }
