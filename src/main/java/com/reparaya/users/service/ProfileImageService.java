@@ -13,7 +13,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
-import java.util.NoSuchElementException;
 
 import static com.reparaya.users.service.UserService.ADMIN_ROLE;
 
@@ -35,7 +34,7 @@ public class ProfileImageService {
         String email = getAuthenticatedUserEmail();
 
         var userOpt = userService.getUserByEmail(email);
-
+        
         if (userOpt.isEmpty()) {
             throw new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario no encontrado con email: " + email);
         }
@@ -49,11 +48,11 @@ public class ProfileImageService {
 
         // Generar URL presigned
         var presignedResult = s3StorageService.generatePresignedUrlForUser(
-                userId,
-                contentType,
+                userId, 
+                contentType, 
                 file.getOriginalFilename()
         );
-
+        
         log.info("URL presigned generada para usuario {}: {}", email, presignedResult.getPresignedUrl());
 
         // Subir la imagen a S3
@@ -65,12 +64,12 @@ public class ProfileImageService {
         }
 
         String imageUrl = s3StorageService.uploadImageToS3(
-                presignedResult.getPresignedUrl(),
-                imageBytes,
-                contentType,
+                presignedResult.getPresignedUrl(), 
+                imageBytes, 
+                contentType, 
                 presignedResult.getKey()
         );
-
+        
         log.info("Imagen subida exitosamente a S3: {}", imageUrl);
 
         // Actualizar el usuario con la URL de la imagen
@@ -100,7 +99,7 @@ public class ProfileImageService {
 
     private String getAuthenticatedUserEmail() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
+        
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalStateException("Usuario no autenticado");
         }

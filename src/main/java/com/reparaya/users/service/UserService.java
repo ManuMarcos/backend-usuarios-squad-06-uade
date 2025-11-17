@@ -333,9 +333,27 @@ public class UserService {
             }
             user.setEmail(request.getEmail().toLowerCase().trim());
         }
-        if (request.getFirstName() != null) user.setFirstName(StringUtils.capitalize(request.getFirstName().toLowerCase().trim()));
-        if (request.getLastName() != null) user.setLastName(StringUtils.capitalize(request.getLastName().toLowerCase().trim()));
-        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber().trim());
+        if (request.getFirstName() != null) {
+            String firstName = StringUtils.capitalize(request.getFirstName().trim().toLowerCase());
+            if (!firstName.matches(FIRSTNAME_LASTNAME_REGEX)) {
+                throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El nombre no debe contener numeros, simbolos o multiples espacios.");
+            }
+            user.setFirstName(firstName);
+        }
+        if (request.getLastName() != null) {
+            String lastName = StringUtils.capitalize(request.getLastName().trim().toLowerCase());
+            if (!lastName.matches(FIRSTNAME_LASTNAME_REGEX)) {
+                throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El apellido no debe contener numeros, simbolos o multiples espacios.");
+            }
+            user.setLastName(lastName);
+        }
+        if (request.getPhoneNumber() != null) {
+            String phoneNumber = request.getPhoneNumber().trim();
+            if (!phoneNumber.matches(PHONE_REGEX)) {
+                throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El numero de telefono solo acepta numeros, +, - o ( ).");
+            }
+            user.setPhoneNumber(phoneNumber);
+        }
 
         if (request.getAddress() != null) {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
@@ -367,6 +385,9 @@ public class UserService {
         boolean ldapUpdated;
 
         if (request.getPassword() != null) {
+            if (!request.getPassword().matches(PASSWORD_REGEX)) {
+                throw new ResponseStatusException(HttpStatusCode.valueOf(400),"La contraseña debe tener mas de 8 digitos, al menos una mayuscula, al menos una minuscula y al menos un simbolo.");
+            }
             ldapUpdated = ldapUserService.updateUserInLdapWithNewPwd(oldEmail, updatedUser, request.getPassword());
         } else {
             ldapUpdated = ldapUserService.updateUserInLdap(oldEmail, updatedUser);
@@ -396,9 +417,15 @@ public class UserService {
 
         String authenticatedEmail = authentication.getPrincipal().toString();
 
+        User authenticatedUser = userRepository.findByEmail(authenticatedEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario con id " + userId + " no encontrado"));
+
+        log.info("EL ROL " + authenticatedUser.getRole().getName());
+        log.info("pasa? " + !ADMIN_ROLE.equalsIgnoreCase(authenticatedUser.getRole().getName()));
+
         String oldEmail = user.getEmail();
 
-        if (!authenticatedEmail.equalsIgnoreCase(oldEmail) && !ADMIN_ROLE.equalsIgnoreCase(user.getRole().getName())) {
+        if (!authenticatedEmail.equalsIgnoreCase(oldEmail) && !ADMIN_ROLE.equalsIgnoreCase(authenticatedUser.getRole().getName())) {
             throw new IllegalStateException("Solo un usuario administrador o el usuario correspondiente puede editar datos.");
         }
 
@@ -408,9 +435,27 @@ public class UserService {
             }
             user.setEmail(request.getEmail().toLowerCase().trim());
         }
-        if (request.getFirstName() != null) user.setFirstName(StringUtils.capitalize(request.getFirstName().toLowerCase().trim()));
-        if (request.getLastName() != null) user.setLastName(StringUtils.capitalize(request.getLastName().toLowerCase().trim()));
-        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber().trim());
+        if (request.getFirstName() != null) {
+            String firstName = StringUtils.capitalize(request.getFirstName().trim().toLowerCase());
+            if (!firstName.matches(FIRSTNAME_LASTNAME_REGEX)) {
+                throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El nombre no debe contener numeros, simbolos o multiples espacios.");
+            }
+            user.setFirstName(firstName);
+        }
+        if (request.getLastName() != null) {
+            String lastName = StringUtils.capitalize(request.getLastName().trim().toLowerCase());
+            if (!lastName.matches(FIRSTNAME_LASTNAME_REGEX)) {
+                throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El apellido no debe contener numeros, simbolos o multiples espacios.");
+            }
+            user.setLastName(lastName);
+        }
+        if (request.getPhoneNumber() != null) {
+            String phoneNumber = request.getPhoneNumber().trim();
+            if (!phoneNumber.matches(PHONE_REGEX)) {
+                throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El numero de telefono solo acepta numeros, +, - o ( ).");
+            }
+            user.setPhoneNumber(phoneNumber);
+        }
 
         if (request.getAddress() != null) {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
@@ -426,6 +471,9 @@ public class UserService {
         boolean ldapUpdated;
 
         if (request.getPassword() != null) {
+            if (!request.getPassword().matches(PASSWORD_REGEX)) {
+                throw new ResponseStatusException(HttpStatusCode.valueOf(400),"La contraseña debe tener mas de 8 digitos, al menos una mayuscula, al menos una minuscula y al menos un simbolo.");
+            }
             ldapUpdated = ldapUserService.updateUserInLdapWithNewPwd(oldEmail, updatedUser, request.getPassword());
         } else {
             ldapUpdated = ldapUserService.updateUserInLdap(oldEmail, updatedUser);
