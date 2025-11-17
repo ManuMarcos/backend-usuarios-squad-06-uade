@@ -12,6 +12,7 @@ import com.reparaya.users.util.JwtUtil;
 import com.reparaya.users.util.RegisterOriginEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,10 @@ public class UserService {
     private final JwtUtil jwtUtil;
     private final CorePublisherService corePublisherService;
     private final S3StorageService s3StorageService;
+
+    private static final String FIRSTNAME_LASTNAME_REGEX = "^[\\p{L}]+(?: [\\p{L}]+)*$";
+    private static final String DNI_REGEX = "^\\d{7,10}$\n";
+    private static final String PHONE_REGEX = "^[0-9()+\\- ]*$\n";
 
     public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
     public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
@@ -101,14 +106,32 @@ public class UserService {
             }
         }
 
+        if (!request.getDni().matches(DNI_REGEX)) {
+            throw new IllegalArgumentException("El dni debe tener de 7 a 10 caracteres y no debe contener letras");
+        }
+
+        String email = request.getEmail().trim().toLowerCase();
+        String firstName = StringUtils.capitalize(request.getFirstName().trim().toLowerCase());
+        String lastName = StringUtils.capitalize(request.getLastName().trim().toLowerCase());
+
+        if (!firstName.matches(FIRSTNAME_LASTNAME_REGEX) || !lastName.matches(FIRSTNAME_LASTNAME_REGEX)) {
+            throw new IllegalArgumentException("El nombre y apellido no deben contener numeros, simbolos o multiples espacios.");
+        }
+
+        String phoneNumber = request.getPhoneNumber().trim();
+
+        if (!phoneNumber.matches(PHONE_REGEX)) {
+            throw new IllegalArgumentException("El numero de telefono solo acepta numeros, +, - o ( ).");
+        }
+
         User newUser = User.builder()
-                .email(request.getEmail())
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
-                .phoneNumber(request.getPhoneNumber())
+                .email(email)
+                .firstName(firstName)
+                .lastName(lastName)
+                .phoneNumber(phoneNumber)
                 .role(role)
-                .dni(request.getDni())
-                .active(false)
+                .dni(request.getDni().trim())
+                .active(true)
                 .registerOrigin(origin)
                 .build();
 
@@ -310,11 +333,11 @@ public class UserService {
             if (!oldEmail.equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
                 throw new RuntimeException("El email ya se encuentra registrado.");
             }
-            user.setEmail(request.getEmail());
+            user.setEmail(request.getEmail().toLowerCase().trim());
         }
-        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
-        if (request.getLastName() != null) user.setLastName(request.getLastName());
-        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
+        if (request.getFirstName() != null) user.setFirstName(StringUtils.capitalize(request.getFirstName().toLowerCase().trim()));
+        if (request.getLastName() != null) user.setLastName(StringUtils.capitalize(request.getLastName().toLowerCase().trim()));
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber().trim());
 
         if (request.getAddress() != null) {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
@@ -330,9 +353,9 @@ public class UserService {
                     user.getUserId()
                 );
                 user.setProfileImageUrl(s3ImageUrl);
-                log.info("Imagen de perfil descargada y subida a S3 para usuario {}: {}", user.getEmail(), s3ImageUrl);
+                log.info("Profile image download and uploaded to S3. User: {}", user.getEmail());
             } catch (Exception e) {
-                log.error("Error al procesar imagen de perfil desde URL para usuario {}: {}", 
+                log.error("Error while processing image for user  {}: {}",
                     user.getEmail(), e.getMessage(), e);
                 throw new RuntimeException("Error al procesar imagen de perfil: " + e.getMessage(), e);
             }
@@ -373,11 +396,11 @@ public class UserService {
             if (!oldEmail.equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
                 throw new RuntimeException("El email ya se encuentra registrado.");
             }
-            user.setEmail(request.getEmail());
+            user.setEmail(request.getEmail().toLowerCase().trim());
         }
-        if (request.getFirstName() != null) user.setFirstName(request.getFirstName());
-        if (request.getLastName() != null) user.setLastName(request.getLastName());
-        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
+        if (request.getFirstName() != null) user.setFirstName(StringUtils.capitalize(request.getFirstName().toLowerCase().trim()));
+        if (request.getLastName() != null) user.setLastName(StringUtils.capitalize(request.getLastName().toLowerCase().trim()));
+        if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber().trim());
 
         if (request.getAddress() != null) {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
