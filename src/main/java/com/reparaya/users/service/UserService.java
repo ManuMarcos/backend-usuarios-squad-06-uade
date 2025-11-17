@@ -419,6 +419,8 @@ public class UserService {
                     user.getEmail(), e.getMessage(), e);
                 throw new RuntimeException("Error al procesar imagen de perfil: " + e.getMessage(), e);
             }
+        } else {
+            user.setProfileImageUrl(null);
         }
 
         user.setUpdatedAt(LocalDateTime.now());
@@ -506,6 +508,10 @@ public class UserService {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
             user.getAddress().clear();
             user.getAddress().addAll(newAddresses);
+        }
+
+        if (request.getProfileImageUrl() == null) {
+            user.setProfileImageUrl(null);
         }
 
         user.setUpdatedAt(LocalDateTime.now());
