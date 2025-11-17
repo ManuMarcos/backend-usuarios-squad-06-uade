@@ -251,13 +251,13 @@ public class UserService {
 
 
     public LoginResponse authenticateUser(LoginRequest request) {
-        boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail(), request.getPassword());
+        boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail().toLowerCase().trim(), request.getPassword());
 
         if (!ldapAuthSuccess) {
             return new LoginResponse(null, null, "Credenciales inválidas");
         }
 
-        Optional<User> optUser = getUserByEmail(request.getEmail());
+        Optional<User> optUser = getUserByEmail(request.getEmail().toLowerCase().trim());
 
         if (optUser.isEmpty()) {
             log.error("No se pudo obtener información del usuario: {}", request.getEmail());
@@ -399,7 +399,7 @@ public class UserService {
         String oldEmail = user.getEmail();
 
         if (!authenticatedEmail.equalsIgnoreCase(oldEmail) && !ADMIN_ROLE.equalsIgnoreCase(user.getRole().getName())) {
-            throw new IllegalArgumentException("Solo un usuario administrador o el usuario correspondiente puede editar datos.");
+            throw new IllegalStateException("Solo un usuario administrador o el usuario correspondiente puede editar datos.");
         }
 
         if (request.getEmail() != null) {
