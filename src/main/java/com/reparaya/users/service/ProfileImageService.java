@@ -4,14 +4,17 @@ import com.reparaya.users.dto.UpdateUserResponse;
 import com.reparaya.users.external.service.CorePublisherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
-import java.util.NoSuchElementException;
+
+import static com.reparaya.users.service.UserService.ADMIN_ROLE;
 
 @Slf4j
 @Service
@@ -29,10 +32,11 @@ public class ProfileImageService {
 
         // Obtener usuario autenticado
         String email = getAuthenticatedUserEmail();
-        var userOpt = userService.getUserByEmail(email);
 
+        var userOpt = userService.getUserByEmail(email);
+        
         if (userOpt.isEmpty()) {
-            throw new NoSuchElementException("Usuario no encontrado con email: " + email);
+            throw new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario no encontrado con email: " + email);
         }
 
         Long userId = userOpt.get().getUserId();
@@ -40,11 +44,11 @@ public class ProfileImageService {
 
         // Generar URL presigned
         var presignedResult = s3StorageService.generatePresignedUrlForUser(
-                userId,
-                contentType,
+                userId, 
+                contentType, 
                 file.getOriginalFilename()
         );
-
+        
         log.info("URL presigned generada para usuario {}: {}", email, presignedResult.getPresignedUrl());
 
         // Subir la imagen a S3
@@ -56,12 +60,12 @@ public class ProfileImageService {
         }
 
         String imageUrl = s3StorageService.uploadImageToS3(
-                presignedResult.getPresignedUrl(),
-                imageBytes,
-                contentType,
+                presignedResult.getPresignedUrl(), 
+                imageBytes, 
+                contentType, 
                 presignedResult.getKey()
         );
-
+        
         log.info("Imagen subida exitosamente a S3: {}", imageUrl);
 
         // Actualizar el usuario con la URL de la imagen
@@ -91,7 +95,7 @@ public class ProfileImageService {
 
     private String getAuthenticatedUserEmail() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
+        
         if (authentication == null || authentication.getPrincipal() == null) {
             throw new IllegalStateException("Usuario no autenticado");
         }

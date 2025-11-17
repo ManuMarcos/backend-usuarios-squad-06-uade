@@ -38,14 +38,10 @@ public class PermissionService {
                         Collectors.mapping(Permission::getPermissionName, Collectors.toList())
                 ));
 
-        log.info("Obtained permissions for user: {} (role: {}): {}",
-                userId, user.getRole().getName(), permissionsByModule);
         return permissionsByModule;
     }
 
     public List<String> getPermissionsForUserInModule(Long userId, String moduleCode) {
-        log.info("Obtaining permissions for user {} in module {}", userId, moduleCode);
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
 
@@ -56,8 +52,6 @@ public class PermissionService {
                 .map(Permission::getPermissionName)
                 .collect(Collectors.toList());
 
-        log.info("Permissions for user {} (role: {}) in module {}: {}",
-                userId, user.getRole().getName(), moduleCode, permissionNames);
         return permissionNames;
     }
 
@@ -98,8 +92,7 @@ public class PermissionService {
 
     @Transactional
     public void addPermissionToUser(Long userId, AddPermissionRequest request) {
-        log.info("Agregando permiso {} al usuario {}", request.getPermissionName(), userId);
-        
+
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
         
@@ -124,8 +117,7 @@ public class PermissionService {
     
     @Transactional
     public void removePermissionFromUser(Long userId, RemovePermissionRequest request) {
-        log.info("Quitando permiso {} del usuario {}", request.getPermissionName(), userId);
-        
+
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + userId));
         

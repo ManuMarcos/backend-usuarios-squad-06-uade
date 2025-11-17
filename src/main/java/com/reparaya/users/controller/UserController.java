@@ -19,6 +19,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.server.ResponseStatusException;
+
 @Tag(name = "user-controller", description = "Operaciones del módulo de Usuarios")
 @RestController
 @RequestMapping("/api/users")
@@ -109,6 +112,9 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(RegisterResponse.builder().message(e.getMessage()).build());
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(RegisterResponse.builder().message(e.getMessage()).build());
         }
     }
 
@@ -189,7 +195,16 @@ public class UserController {
     public ResponseEntity<String> updateUser(
             @PathVariable Long userId,
             @RequestBody @Valid UpdateUserRequest request) {
-        return ResponseEntity.ok(userService.updateUserPartially(userId, request));
+        try {
+            var response = userService.updateUserPartially(userId, request);
+            return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ex.getMessage());
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ex.getMessage());
+        }
     }
 
     @Operation(
