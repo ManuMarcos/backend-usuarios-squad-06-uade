@@ -355,7 +355,7 @@ public class UserService {
         }
 
         if (!ldapUserService.authenticateUser(request.getEmail(), request.getOldPassword())) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(401),"Credenciales inválidas.");
+            throw new IllegalStateException("Credenciales inválidas.");
         }
 
         if (ldapUserService.resetUserPassword(optUser.get(), request.getNewPassword())) {

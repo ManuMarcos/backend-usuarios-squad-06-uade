@@ -168,9 +168,18 @@ public class UserController {
                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
             }
     )
-    @PatchMapping("/{userId}/reset-password")
+    @PatchMapping("/reset-password")
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
-        return ResponseEntity.ok(userService.resetPassword(request));
+        try {
+            var response = userService.resetPassword(request);
+            return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(ex.getMessage());
+        } catch (IllegalStateException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ex.getMessage());
+        }
     }
 
     @Operation(
