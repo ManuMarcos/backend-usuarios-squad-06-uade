@@ -77,6 +77,7 @@ public class ProfileImageService {
                 .user(userService.mapUserToDto(updatedUser))
                 .build();
 
+
         corePublisherService.sendUserUpdatedToCore(responseToCore);
 
         return imageUrl;
