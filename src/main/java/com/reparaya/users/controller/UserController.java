@@ -3,6 +3,7 @@ package com.reparaya.users.controller;
 import java.util.List;
 
 import com.reparaya.users.dto.*;
+import com.reparaya.users.service.PasswordResetService;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,7 @@ public class UserController {
 
     public static final String UPDATE_USER_ERROR = "Error al actualizar el usuario. ";
     private final UserService userService;
+    private final PasswordResetService passwordResetService;
 
     @Operation(
     summary = "Listar usuarios",
@@ -153,9 +155,8 @@ public class UserController {
     }
 
     @Operation(
-            summary = "Resetear contraseña",
+            summary = "Cambiar contraseña",
             description = "Actualiza la contraseña del usuario indicado.",
-            parameters = @Parameter(name = "userId", description = "ID del usuario", example = "42"),
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     required = true,
                     content = @Content(mediaType = "application/json",
@@ -168,7 +169,7 @@ public class UserController {
                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
             }
     )
-    @PatchMapping("/reset-password")
+    @PatchMapping("/change-password")
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
         try {
             var response = userService.resetPassword(request);
@@ -238,5 +239,18 @@ public class UserController {
         userService.changeUserIsActive(userId, request);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        passwordResetService.createAndSendResetToken(request.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody ResetForgotPasswordRequest request) {
+        passwordResetService.resetPassword(request.getToken(), request.getNewPassword());
+        return ResponseEntity.ok().build();
+    }
+
 
 }
