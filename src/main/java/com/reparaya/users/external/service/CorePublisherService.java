@@ -58,7 +58,7 @@ public class CorePublisherService {
                 "payload", userData
         );
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-        log.info("Sending user created event to core with messageId: {} and email_ {}", messageId, registerResponse.getUser().getEmail());
+        log.info("Sending user created event to core with messageId: {} and email: {}", messageId, registerResponse.getUser().getEmail());
 
         String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
         log.info("Received user created response from core: {} for messageId: {}", response, messageId);

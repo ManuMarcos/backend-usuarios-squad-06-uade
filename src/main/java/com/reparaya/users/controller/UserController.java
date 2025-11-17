@@ -19,6 +19,9 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.server.ResponseStatusException;
+
 @Tag(name = "user-controller", description = "Operaciones del módulo de Usuarios")
 @RestController
 @RequestMapping("/api/users")
@@ -108,6 +111,9 @@ public class UserController {
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(RegisterResponse.builder().message(e.getMessage()).build());
+        } catch (ResponseStatusException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(RegisterResponse.builder().message(e.getMessage()).build());
         }
     }

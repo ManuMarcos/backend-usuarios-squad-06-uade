@@ -4,14 +4,18 @@ import com.reparaya.users.dto.UpdateUserResponse;
 import com.reparaya.users.external.service.CorePublisherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.NoSuchElementException;
+
+import static com.reparaya.users.service.UserService.ADMIN_ROLE;
 
 @Slf4j
 @Service
@@ -29,10 +33,15 @@ public class ProfileImageService {
 
         // Obtener usuario autenticado
         String email = getAuthenticatedUserEmail();
+
         var userOpt = userService.getUserByEmail(email);
 
         if (userOpt.isEmpty()) {
-            throw new NoSuchElementException("Usuario no encontrado con email: " + email);
+            throw new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario no encontrado con email: " + email);
+        }
+
+        if (!userOpt.get().getEmail().equalsIgnoreCase(email) && !ADMIN_ROLE.equalsIgnoreCase(userOpt.get().getRole().getName())) {
+            throw new IllegalArgumentException("Solo un usuario administrador o el usuario correspondiente puede editar la imagen de perfil.");
         }
 
         Long userId = userOpt.get().getUserId();

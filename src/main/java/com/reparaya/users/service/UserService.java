@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,6 +32,7 @@ import static com.reparaya.users.mapper.AddressMapper.mapAddressInfoListToAddres
 @Transactional
 public class UserService {
 
+    public static final String ADMIN_ROLE = "ADMIN";
     private final UserRepository userRepository;
     private final LdapUserService ldapUserService;
     private final PermissionService permissionService;
@@ -38,8 +41,9 @@ public class UserService {
     private final S3StorageService s3StorageService;
 
     private static final String FIRSTNAME_LASTNAME_REGEX = "^[\\p{L}]+(?: [\\p{L}]+)*$";
-    private static final String DNI_REGEX = "^\\d{7,10}$\n";
-    private static final String PHONE_REGEX = "^[0-9()+\\- ]*$\n";
+    private static final String DNI_REGEX = "^\\d{7,10}$";
+    private static final String PHONE_REGEX = "^[0-9()+\\- ]*$";
+    private static final String PASSWORD_REGEX = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}$";
 
     public static final String SUCCESS_PWD_RESET = "Contraseña cambiada con éxito";
     public static final String ERROR_PWD_RESET = "Ocurrió un error al intentar cambiar la contraseña. Intente nuevamente o contáctese con un administrador";
@@ -83,17 +87,17 @@ public class UserService {
     }
 
     public User createUser(RegisterRequest request, CoreMessage.Destination destination) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userRepository.existsByEmail(request.getEmail().toLowerCase().trim())) {
             throw new IllegalArgumentException("El email ya está registrado: " + request.getEmail());
         }
 
-        if (ldapUserService.userExistsInLdap(request.getEmail())) {
+        if (ldapUserService.userExistsInLdap(request.getEmail().toLowerCase().trim())) {
             throw new IllegalArgumentException("El email ya existe en LDAP: " + request.getEmail());
         }
 
         String normalized = normalizeRoleName(request.getRole());
         Role role = roleRepository.findByName(normalized)
-                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + normalized));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Rol no encontrado: " + normalized));
 
         String origin = RegisterOriginEnum.WEB_USUARIOS.name();
 
@@ -107,7 +111,7 @@ public class UserService {
         }
 
         if (!request.getDni().matches(DNI_REGEX)) {
-            throw new IllegalArgumentException("El dni debe tener de 7 a 10 caracteres y no debe contener letras");
+            throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El dni debe tener de 7 a 10 caracteres y no debe contener letras");
         }
 
         String email = request.getEmail().trim().toLowerCase();
@@ -115,13 +119,18 @@ public class UserService {
         String lastName = StringUtils.capitalize(request.getLastName().trim().toLowerCase());
 
         if (!firstName.matches(FIRSTNAME_LASTNAME_REGEX) || !lastName.matches(FIRSTNAME_LASTNAME_REGEX)) {
-            throw new IllegalArgumentException("El nombre y apellido no deben contener numeros, simbolos o multiples espacios.");
+            throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El nombre y apellido no deben contener numeros, simbolos o multiples espacios.");
         }
 
         String phoneNumber = request.getPhoneNumber().trim();
 
         if (!phoneNumber.matches(PHONE_REGEX)) {
-            throw new IllegalArgumentException("El numero de telefono solo acepta numeros, +, - o ( ).");
+            throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El numero de telefono solo acepta numeros, +, - o ( ).");
+        }
+
+        if (!request.getPassword().matches(PASSWORD_REGEX)) {
+            throw new ResponseStatusException(HttpStatusCode.valueOf(400),"La contraseña debe tener mas de 8 digitos, al menos una mayuscula, al menos una minuscula y al menos un simbolo.");
+
         }
 
         User newUser = User.builder()
@@ -216,7 +225,7 @@ public class UserService {
     @Transactional
     public void activateUserAfterRegistration(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"User not found with id: " + userId));
         if (!user.getActive()) {
             user.setActive(true);
             user.setUpdatedAt(LocalDateTime.now());
@@ -237,8 +246,6 @@ public class UserService {
 
         corePublisherService.sendUserCreatedToCore(response);
 
-        // TODO: enviar email
-
         return response;
     }
 
@@ -247,7 +254,6 @@ public class UserService {
         boolean ldapAuthSuccess = ldapUserService.authenticateUser(request.getEmail(), request.getPassword());
 
         if (!ldapAuthSuccess) {
-            log.warn("Autenticación LDAP fallida para usuario: {}", request.getEmail());
             return new LoginResponse(null, null, "Credenciales inválidas");
         }
 
@@ -293,24 +299,16 @@ public class UserService {
     }
 
 
-    public boolean validateTokenAndUser(String token, String email) {
-        return jwtUtil.validateToken(token, email);
-    }
-
-    public String extractEmailFromToken(String token) {
-        return jwtUtil.extractEmail(token);
-    }
-
-    public String extractRoleFromToken(String token) {
-        return jwtUtil.extractRole(token);
-    }
-
     @Transactional
     public String resetPassword(Long userId, String newPassword) {
         Optional<User> optUser = getUserEntityById(userId);
 
         if (optUser.isEmpty()) {
-            throw new RuntimeException("El usuario con id: " + userId + " no existe.");
+            throw new ResponseStatusException(HttpStatusCode.valueOf(404),"El usuario con id: " + userId + " no existe.");
+        }
+
+        if (!newPassword.matches(PASSWORD_REGEX)) {
+            throw new ResponseStatusException(HttpStatusCode.valueOf(400),"La contraseña debe tener mas de 8 digitos, al menos una mayuscula, al menos una minuscula y al menos un simbolo.");
         }
 
         if (ldapUserService.resetUserPassword(optUser.get(), newPassword)) {
@@ -325,7 +323,7 @@ public class UserService {
     @Transactional
     public UpdateUserResponse updateUserPartiallyFromEvent(UpdateUserRequest request) {
         User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new RuntimeException("Usuario con id " + request.getUserId() + " no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario con id " + request.getUserId() + " no encontrado"));
 
         String oldEmail = user.getEmail();
 
@@ -388,12 +386,24 @@ public class UserService {
     @Transactional
     public String updateUserPartially(Long userId, UpdateUserRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario con id " + userId + " no encontrado"));
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new IllegalStateException("Usuario no autenticado");
+        }
+
+        String authenticatedEmail = authentication.getPrincipal().toString();
 
         String oldEmail = user.getEmail();
 
+        if (!authenticatedEmail.equalsIgnoreCase(oldEmail) && !ADMIN_ROLE.equalsIgnoreCase(user.getRole().getName())) {
+            throw new IllegalArgumentException("Solo un usuario administrador o el usuario correspondiente puede editar datos.");
+        }
+
         if (request.getEmail() != null) {
-            if (!oldEmail.equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+            if (!oldEmail.equals(request.getEmail().toLowerCase().trim()) && userRepository.existsByEmail(request.getEmail().toLowerCase().trim())) {
                 throw new RuntimeException("El email ya se encuentra registrado.");
             }
             user.setEmail(request.getEmail().toLowerCase().trim());
@@ -439,7 +449,7 @@ public class UserService {
 
     public void changeUserIsActive(Long userId, UserChangeActiveRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuario con id " + userId + " no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario con id " + userId + " no encontrado"));
         user.setActive(request.isActive());
         user.setUpdatedAt(LocalDateTime.now());
     }
@@ -447,7 +457,7 @@ public class UserService {
     @Transactional
     public User updateUserProfileImage(String email, String profileImageUrl) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario con email " + email + " no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario con email " + email + " no encontrado"));
         user.setProfileImageUrl(profileImageUrl);
         user.setUpdatedAt(LocalDateTime.now());
         var userUpdated = userRepository.save(user);

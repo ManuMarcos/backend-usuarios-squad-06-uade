@@ -78,10 +78,8 @@ public class LdapUserService {
             );
 
             if (auth) {
-                log.info("Autenticación LDAP exitosa para usuario: {}", email);
                 return true;
             } else {
-                log.warn("Autenticación LDAP fallida para usuario: {}", email);
                 return false;
             }
 
