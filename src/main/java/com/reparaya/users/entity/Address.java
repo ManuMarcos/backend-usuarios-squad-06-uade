@@ -19,20 +19,22 @@ public class Address {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long addressId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 55)
     private String state;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 40)
     private String city;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 40)
     private String street;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 10)
     private String number;
 
+    @Column(length = 3)
     private String floor;
 
+    @Column(length = 3)
     private String apartment;
 
     @ManyToOne(fetch = FetchType.LAZY)
