@@ -160,7 +160,7 @@ public class UserController {
                     required = true,
                     content = @Content(mediaType = "application/json",
                             schema = @Schema(implementation = ResetPasswordRequest.class),
-                            examples = @ExampleObject(value = "{\n  \"newPassword\": \"Nuev4P4ss!\"\n}"))
+                            examples = @ExampleObject(value = "{\n  \"email\": \"email@email.com\"\n \"oldPassword\": \"Nuev4P4ss!\"\n \"newPassword\":\"P4ssw0rd!\"\n}"))
             ),
             responses = {
                     @ApiResponse(responseCode = "200", description = "Contraseña cambiada",
@@ -169,8 +169,8 @@ public class UserController {
             }
     )
     @PatchMapping("/{userId}/reset-password")
-    public ResponseEntity<String> resetPassword(@PathVariable Long userId, @RequestBody ResetPasswordRequest request) {
-        return ResponseEntity.ok(userService.resetPassword(userId, request.getNewPassword()));
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(userService.resetPassword(request));
     }
 
     @Operation(

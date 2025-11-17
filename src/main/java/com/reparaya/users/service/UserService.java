@@ -343,18 +343,22 @@ public class UserService {
 
 
     @Transactional
-    public String resetPassword(Long userId, String newPassword) {
-        Optional<User> optUser = getUserEntityById(userId);
+    public String resetPassword(ResetPasswordRequest request) {
+        Optional<User> optUser = getUserByEmail(request.getEmail());
 
         if (optUser.isEmpty()) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(404),"El usuario con id: " + userId + " no existe.");
+            throw new ResponseStatusException(HttpStatusCode.valueOf(404),"El usuario con email: " + request.getEmail() + " no existe.");
         }
 
-        if (!newPassword.matches(PASSWORD_REGEX)) {
+        if (!request.getNewPassword().matches(PASSWORD_REGEX)) {
             throw new ResponseStatusException(HttpStatusCode.valueOf(400),"La contraseña debe tener mas de 8 digitos, al menos una mayuscula, al menos una minuscula y al menos un simbolo.");
         }
 
-        if (ldapUserService.resetUserPassword(optUser.get(), newPassword)) {
+        if (!ldapUserService.authenticateUser(request.getEmail(), request.getOldPassword())) {
+            throw new ResponseStatusException(HttpStatusCode.valueOf(401),"Credenciales inválidas.");
+        }
+
+        if (ldapUserService.resetUserPassword(optUser.get(), request.getNewPassword())) {
             optUser.get().setUpdatedAt(LocalDateTime.now());
             userRepository.save(optUser.get());
             return SUCCESS_PWD_RESET;
