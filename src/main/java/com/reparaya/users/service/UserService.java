@@ -472,9 +472,6 @@ public class UserService {
         User authenticatedUser = userRepository.findByEmail(authenticatedEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario con id " + userId + " no encontrado"));
 
-        log.info("EL ROL " + authenticatedUser.getRole().getName());
-        log.info("pasa? " + !ADMIN_ROLE.equalsIgnoreCase(authenticatedUser.getRole().getName()));
-
         String oldEmail = user.getEmail();
 
         if (!authenticatedEmail.equalsIgnoreCase(oldEmail) && !ADMIN_ROLE.equalsIgnoreCase(authenticatedUser.getRole().getName())) {
