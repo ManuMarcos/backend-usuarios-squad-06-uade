@@ -238,46 +238,6 @@ public class UserService {
         }
     }
 
-    private void validateNoDuplicateWithExistingAddresses(List<AddressInfo> newAddressList, List<Address> existingAddresses) {
-        if (newAddressList == null || newAddressList.isEmpty()) {
-            return;
-        }
-
-        if (existingAddresses == null || existingAddresses.isEmpty()) {
-            return;
-        }
-
-        // Crear un set con las claves normalizadas de las direcciones existentes
-        Set<String> existingAddressKeys = new HashSet<>();
-        for (Address existingAddr : existingAddresses) {
-            String addressKey = normalizeAddressKey(
-                existingAddr.getState(), existingAddr.getCity(), existingAddr.getStreet(),
-                existingAddr.getNumber(), existingAddr.getFloor(), existingAddr.getApartment()
-            );
-            existingAddressKeys.add(addressKey);
-        }
-
-        // Validar que las nuevas direcciones no estén duplicadas con las existentes
-        for (AddressInfo newAddr : newAddressList) {
-            String addressKey = normalizeAddressKey(
-                newAddr.getState(), newAddr.getCity(), newAddr.getStreet(),
-                newAddr.getNumber(), newAddr.getFloor(), newAddr.getApartment()
-            );
-            
-            if (existingAddressKeys.contains(addressKey)) {
-                String normalizedStreet = StringUtils.capitalize(newAddr.getStreet().trim().toLowerCase());
-                String normalizedNumber = newAddr.getNumber().trim();
-                String normalizedCity = StringUtils.capitalize(newAddr.getCity().trim().toLowerCase());
-                throw new ResponseStatusException(
-                    HttpStatusCode.valueOf(400),
-                    "No se puede agregar una dirección que el usuario ya tiene registrada. " +
-                    "La dirección en " + normalizedStreet + " " + normalizedNumber + ", " + normalizedCity + 
-                    " ya está asociada a este usuario."
-                );
-            }
-        }
-    }
-
     public void registerUserFromEvent(RegisterRequest request, CoreMessage event) {
 
         User savedUser = createUser(request, event.getDestination());
@@ -440,7 +400,6 @@ public class UserService {
 
         if (request.getAddress() != null) {
             validateNoDuplicateAddresses(request.getAddress());
-            validateNoDuplicateWithExistingAddresses(request.getAddress(), user.getAddress());
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
             user.getAddress().clear();
             user.getAddress().addAll(newAddresses);
@@ -544,7 +503,6 @@ public class UserService {
 
         if (request.getAddress() != null) {
             validateNoDuplicateAddresses(request.getAddress());
-            validateNoDuplicateWithExistingAddresses(request.getAddress(), user.getAddress());
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
             user.getAddress().clear();
             user.getAddress().addAll(newAddresses);
