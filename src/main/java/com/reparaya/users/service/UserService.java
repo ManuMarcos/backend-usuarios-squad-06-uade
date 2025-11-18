@@ -87,8 +87,15 @@ public class UserService {
     }
 
     public User createUser(RegisterRequest request, CoreMessage.Destination destination) {
-        if (userRepository.existsByEmail(request.getEmail().toLowerCase().trim())) {
-            throw new IllegalArgumentException("El email ya está registrado: " + request.getEmail());
+
+        String email = request.getEmail().trim().toLowerCase();
+
+        if (!request.getDni().matches(DNI_REGEX)) {
+            throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El dni debe tener de 7 a 10 caracteres y no debe contener letras");
+        }
+
+        if (userRepository.existsByEmailOrDni(email, request.getDni())) {
+            throw new IllegalArgumentException("El email o el dni ya se encuentra registrado.");
         }
 
         if (ldapUserService.userExistsInLdap(request.getEmail().toLowerCase().trim())) {
@@ -110,11 +117,6 @@ public class UserService {
             }
         }
 
-        if (!request.getDni().matches(DNI_REGEX)) {
-            throw new ResponseStatusException(HttpStatusCode.valueOf(400),"El dni debe tener de 7 a 10 caracteres y no debe contener letras");
-        }
-
-        String email = request.getEmail().trim().toLowerCase();
         String firstName = StringUtils.capitalize(request.getFirstName().trim().toLowerCase());
         String lastName = StringUtils.capitalize(request.getLastName().trim().toLowerCase());
 
@@ -470,9 +472,6 @@ public class UserService {
         User authenticatedUser = userRepository.findByEmail(authenticatedEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario con id " + userId + " no encontrado"));
 
-        log.info("EL ROL " + authenticatedUser.getRole().getName());
-        log.info("pasa? " + !ADMIN_ROLE.equalsIgnoreCase(authenticatedUser.getRole().getName()));
-
         String oldEmail = user.getEmail();
 
         if (!authenticatedEmail.equalsIgnoreCase(oldEmail) && !ADMIN_ROLE.equalsIgnoreCase(authenticatedUser.getRole().getName())) {
@@ -512,10 +511,6 @@ public class UserService {
             List<Address> newAddresses = mapAddressInfoListToAddressList(request.getAddress(), user);
             user.getAddress().clear();
             user.getAddress().addAll(newAddresses);
-        }
-
-        if (request.getProfileImageUrl() == null) {
-            user.setProfileImageUrl(null);
         }
 
         user.setUpdatedAt(LocalDateTime.now());

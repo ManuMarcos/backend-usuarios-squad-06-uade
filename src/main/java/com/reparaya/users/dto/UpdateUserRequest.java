@@ -26,4 +26,5 @@ public class UpdateUserRequest {
     private List<Object> zones;
     private List<Object> skills;
     private String profileImageUrl;
+    private String role;
 }
