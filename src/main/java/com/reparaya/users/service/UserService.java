@@ -95,7 +95,7 @@ public class UserService {
         }
 
         if (userRepository.existsByEmailOrDni(email, request.getDni())) {
-            throw new IllegalArgumentException("El email o el dni ya se encuentra registrado: " + request.getEmail());
+            throw new IllegalArgumentException("El email o el dni ya se encuentra registrado.");
         }
 
         if (ldapUserService.userExistsInLdap(request.getEmail().toLowerCase().trim())) {
