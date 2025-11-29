@@ -550,7 +550,9 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatusCode.valueOf(404),"Usuario con id " + userId + " no encontrado"));
         user.setActive(request.isActive());
         user.setUpdatedAt(LocalDateTime.now());
-        corePublisherService.sendUserDeactivatedToCore(userId);
+        if (!request.isActive()) {
+            corePublisherService.sendUserDeactivatedToCore(userId);
+        }
     }
     
     @Transactional
