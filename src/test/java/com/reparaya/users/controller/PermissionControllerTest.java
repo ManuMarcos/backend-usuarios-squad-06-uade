@@ -149,6 +149,22 @@ class PermissionControllerTest {
     }
 
     @Test
+    void addPermissionToUser_returnsInternalServerErrorOnUnexpectedFailure() throws Exception {
+        doThrow(new RuntimeException("fail"))
+                .when(permissionService).addPermissionToUser(any(), any(AddPermissionRequest.class));
+
+        AddPermissionRequest request = AddPermissionRequest.builder()
+                .moduleCode("catalogue")
+                .permissionName("MANAGE")
+                .build();
+
+        mockMvc.perform(post("/api/permissions/user/{userId}/add", 2L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
     void removePermissionFromUser_returnsNotFoundWhenMissing() throws Exception {
         doThrow(new IllegalArgumentException("missing"))
                 .when(permissionService).removePermissionFromUser(any(), any(RemovePermissionRequest.class));
@@ -165,8 +181,42 @@ class PermissionControllerTest {
     }
 
     @Test
+    void removePermissionFromUser_returnsInternalServerErrorOnUnexpectedFailure() throws Exception {
+        doThrow(new RuntimeException("boom"))
+                .when(permissionService).removePermissionFromUser(any(), any(RemovePermissionRequest.class));
+
+        RemovePermissionRequest request = RemovePermissionRequest.builder()
+                .moduleCode("catalogue")
+                .permissionName("MANAGE")
+                .build();
+
+        mockMvc.perform(delete("/api/permissions/user/{userId}/remove", 2L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
     void syncPermissions_handlesSuccess() throws Exception {
         mockMvc.perform(post("/api/permissions/user/{userId}/sync", 5L))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void syncPermissions_returnsNotFoundWhenServiceThrowsIllegalArgument() throws Exception {
+        doThrow(new IllegalArgumentException("missing user"))
+                .when(permissionService).syncUserPermissionsWithRole(5L);
+
+        mockMvc.perform(post("/api/permissions/user/{userId}/sync", 5L))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void syncPermissions_returnsInternalServerErrorOnUnexpectedFailure() throws Exception {
+        doThrow(new RuntimeException("fail"))
+                .when(permissionService).syncUserPermissionsWithRole(6L);
+
+        mockMvc.perform(post("/api/permissions/user/{userId}/sync", 6L))
+                .andExpect(status().isInternalServerError());
     }
 }

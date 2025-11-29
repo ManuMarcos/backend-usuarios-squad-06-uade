@@ -37,8 +37,8 @@ class AddressMapperTest {
 
         assertThat(addresses).hasSize(1);
         Address mapped = addresses.get(0);
-        assertThat(mapped.getState()).isEqualTo("Buenos Aires");
-        assertThat(mapped.getCity()).isEqualTo("CABA");
+        assertThat(mapped.getState()).isEqualTo("Buenos aires");
+        assertThat(mapped.getCity()).isEqualTo("Caba");
         assertThat(mapped.getStreet()).isEqualTo("Libertad");
         assertThat(mapped.getNumber()).isEqualTo("100");
         assertThat(mapped.getFloor()).isEqualTo("1");

@@ -209,7 +209,7 @@ public class UserController {
             var response = userService.updateUserPartially(userId, request);
             return ResponseEntity.ok(response);
         } catch (ResponseStatusException ex) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            return ResponseEntity.status(ex.getStatusCode())
                     .body(ex.getMessage());
         } catch (IllegalStateException ex) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)

@@ -6,6 +6,7 @@ import com.reparaya.users.dto.LoginRequest;
 import com.reparaya.users.dto.LoginResponse;
 import com.reparaya.users.dto.RegisterRequest;
 import com.reparaya.users.dto.RegisterResponse;
+import com.reparaya.users.dto.ResetPasswordRequest;
 import com.reparaya.users.dto.UpdateUserRequest;
 import com.reparaya.users.dto.UserChangeActiveRequest;
 import com.reparaya.users.dto.UserDto;
@@ -15,8 +16,8 @@ import com.reparaya.users.entity.Role;
 import com.reparaya.users.entity.User;
 import com.reparaya.users.repository.RoleRepository;
 import com.reparaya.users.repository.UserRepository;
-import com.reparaya.users.util.JwtUtil;
 import com.reparaya.users.util.RegisterOriginEnum;
+import com.reparaya.users.util.JwtUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -75,6 +78,7 @@ class UserServiceTest {
     @AfterEach
     void tearDown() throws Exception {
         mocks.close();
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -161,6 +165,50 @@ class UserServiceTest {
     }
 
     @Test
+    void deactivateUserFromEvent_throwsWhenAlreadyInactive() {
+        Long userId = 20L;
+        User user = new User();
+        user.setUserId(userId);
+        user.setActive(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () -> userService.deactivateUserFromEvent(userId));
+        assertTrue(ex.getMessage().toLowerCase().contains("inactive"));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void activateUserAfterRegistration_setsActiveWhenInactive() {
+        Long userId = 21L;
+        User user = new User();
+        user.setUserId(userId);
+        user.setActive(false);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        userService.activateUserAfterRegistration(userId);
+
+        assertTrue(user.getActive());
+        assertNotNull(user.getUpdatedAt());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    void updateUserProfileImage_updatesUrlAndTimestamp() {
+        User user = new User();
+        user.setEmail("user@example.com");
+        user.setUpdatedAt(LocalDateTime.now().minusDays(1));
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        User updated = userService.updateUserProfileImage("user@example.com", "https://img");
+
+        assertEquals("https://img", updated.getProfileImageUrl());
+        assertTrue(updated.getUpdatedAt().isAfter(LocalDateTime.now().minusMinutes(1)));
+        verify(userRepository).save(user);
+    }
+
+    @Test
     void createUser_persistsUserAndCreatesLdap() {
         RegisterRequest request = mock(RegisterRequest.class);
         when(request.getEmail()).thenReturn("new@example.com");
@@ -169,7 +217,7 @@ class UserServiceTest {
         when(request.getLastName()).thenReturn("Doe");
         when(request.getPhoneNumber()).thenReturn("+54 11 1234 5678");
         when(request.getDni()).thenReturn("12345678");
-        when(request.getPassword()).thenReturn("Secret123");
+        when(request.getPassword()).thenReturn("Secret123!");
         AddressInfo primary = AddressInfo.builder()
                 .state("Buenos Aires")
                 .city("Avellaneda")
@@ -178,7 +226,7 @@ class UserServiceTest {
                 .build();
         when(request.getAddress()).thenReturn(Collections.singletonList(primary));
 
-        when(userRepository.existsByEmail("new@example.com")).thenReturn(false);
+        when(userRepository.existsByEmailOrDni("new@example.com", "12345678")).thenReturn(false);
         when(ldapUserService.userExistsInLdap("new@example.com")).thenReturn(false);
         Role role = Role.builder().id(1L).name("ROLE_ADMIN").description("Admin").active(true).build();
         when(roleRepository.findByName("ADMIN")).thenReturn(Optional.of(role));
@@ -198,7 +246,7 @@ class UserServiceTest {
         assertEquals("Avellaneda", storedAddress.getCity());
         assertEquals(created, storedAddress.getUser());
 
-        verify(userRepository).existsByEmail("new@example.com");
+        verify(userRepository).existsByEmailOrDni("new@example.com", "12345678");
         verify(ldapUserService).userExistsInLdap("new@example.com");
         verify(roleRepository).findByName("ADMIN");
         verify(userRepository).save(userCaptor.capture());
@@ -206,12 +254,12 @@ class UserServiceTest {
         User entitySaved = userCaptor.getValue();
         assertEquals("new@example.com", entitySaved.getEmail());
         assertEquals("ROLE_ADMIN", entitySaved.getRole().getName());
-        assertFalse(entitySaved.getActive());
+        assertTrue(entitySaved.getActive());
         assertEquals(RegisterOriginEnum.WEB_USUARIOS.name(), entitySaved.getRegisterOrigin());
 
         verify(ldapUserService).createUserInLdap(
                 argThat(u -> "new@example.com".equals(u.getEmail()) && "John".equals(u.getFirstName())),
-                eq("Secret123")
+                eq("Secret123!")
         );
         verifyNoMoreInteractions(userRepository);
     }
@@ -220,13 +268,14 @@ class UserServiceTest {
     void createUser_whenEmailExists_throwsExceptionAndSkipsLdap() {
         RegisterRequest request = mock(RegisterRequest.class);
         when(request.getEmail()).thenReturn("duplicate@example.com");
+        when(request.getDni()).thenReturn("12345678");
 
-        when(userRepository.existsByEmail("duplicate@example.com")).thenReturn(true);
+        when(userRepository.existsByEmailOrDni("duplicate@example.com", "12345678")).thenReturn(true);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request, null));
-        assertTrue(ex.getMessage().contains("duplicate@example.com"));
+        assertTrue(ex.getMessage().toLowerCase().contains("email o el dni"));
 
-        verify(userRepository).existsByEmail("duplicate@example.com");
+        verify(userRepository).existsByEmailOrDni("duplicate@example.com", "12345678");
         verifyNoInteractions(ldapUserService);
         verify(userRepository, never()).save(any(User.class));
         verify(roleRepository, never()).findByName(any());
@@ -237,15 +286,20 @@ class UserServiceTest {
         RegisterRequest request = mock(RegisterRequest.class);
         when(request.getEmail()).thenReturn("role-missing@example.com");
         when(request.getRole()).thenReturn("manager");
+        when(request.getDni()).thenReturn("12345678");
+        when(request.getFirstName()).thenReturn("First");
+        when(request.getLastName()).thenReturn("Last");
+        when(request.getPhoneNumber()).thenReturn("1234567");
+        when(request.getPassword()).thenReturn("Secret123!");
 
-        when(userRepository.existsByEmail("role-missing@example.com")).thenReturn(false);
+        when(userRepository.existsByEmailOrDni("role-missing@example.com", "12345678")).thenReturn(false);
         when(ldapUserService.userExistsInLdap("role-missing@example.com")).thenReturn(false);
         when(roleRepository.findByName("MANAGER")).thenReturn(Optional.empty());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request, null));
-        assertTrue(ex.getMessage().contains("Rol no encontrado"));
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> userService.createUser(request, null));
+        assertTrue(ex.getReason().contains("Rol no encontrado"));
 
-        verify(userRepository).existsByEmail("role-missing@example.com");
+        verify(userRepository).existsByEmailOrDni("role-missing@example.com", "12345678");
         verify(ldapUserService).userExistsInLdap("role-missing@example.com");
         verify(roleRepository).findByName("MANAGER");
         verify(userRepository, never()).save(any(User.class));
@@ -257,13 +311,18 @@ class UserServiceTest {
         RegisterRequest request = mock(RegisterRequest.class);
         when(request.getEmail()).thenReturn("blank@example.com");
         when(request.getRole()).thenReturn("   ");
-        when(userRepository.existsByEmail("blank@example.com")).thenReturn(false);
+        when(request.getDni()).thenReturn("12345678");
+        when(request.getFirstName()).thenReturn("First");
+        when(request.getLastName()).thenReturn("Last");
+        when(request.getPhoneNumber()).thenReturn("1234567");
+        when(request.getPassword()).thenReturn("Secret123!");
+        when(userRepository.existsByEmailOrDni("blank@example.com", "12345678")).thenReturn(false);
         when(ldapUserService.userExistsInLdap("blank@example.com")).thenReturn(false);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> userService.createUser(request, null));
 
         assertTrue(ex.getMessage().contains("Debe enviar role"));
-        verify(userRepository).existsByEmail("blank@example.com");
+        verify(userRepository).existsByEmailOrDni("blank@example.com", "12345678");
         verify(ldapUserService).userExistsInLdap("blank@example.com");
         verifyNoInteractions(roleRepository);
     }
@@ -272,7 +331,7 @@ class UserServiceTest {
     void createUser_fromPrestadorEventSetsOriginAndAddress() {
         RegisterRequest request = RegisterRequest.builder()
                 .email("catalog@example.com")
-                .password("Pass12345")
+                .password("Pass12345!")
                 .firstName("Cat")
                 .lastName("User")
                 .phoneNumber("555")
@@ -289,7 +348,7 @@ class UserServiceTest {
         destination.setTopic("prestador");
         destination.setEventName("user_created");
 
-        when(userRepository.existsByEmail("catalog@example.com")).thenReturn(false);
+        when(userRepository.existsByEmailOrDni("catalog@example.com", "12345678")).thenReturn(false);
         when(ldapUserService.userExistsInLdap("catalog@example.com")).thenReturn(false);
         Role role = Role.builder().id(9L).name("PRESTADOR").build();
         when(roleRepository.findByName("PRESTADOR")).thenReturn(Optional.of(role));
@@ -304,10 +363,10 @@ class UserServiceTest {
         assertEquals(RegisterOriginEnum.CATALOGO.name(), created.getRegisterOrigin());
         assertEquals(1, created.getAddress().size());
         Address mappedAddress = created.getAddress().get(0);
-        assertEquals("CABA", mappedAddress.getCity());
-        assertEquals("Buenos Aires", mappedAddress.getState());
+        assertEquals("Caba", mappedAddress.getCity());
+        assertEquals("Buenos aires", mappedAddress.getState());
         verify(userRepository).save(created);
-        verify(ldapUserService).createUserInLdap(any(User.class), eq("Pass12345"));
+        verify(ldapUserService).createUserInLdap(any(User.class), eq("Pass12345!"));
     }
 
     @Test
@@ -318,8 +377,8 @@ class UserServiceTest {
         when(request.getFirstName()).thenReturn("Jane");
         when(request.getLastName()).thenReturn("Doe");
         when(request.getPhoneNumber()).thenReturn("111");
-        when(request.getDni()).thenReturn("999");
-        when(request.getPassword()).thenReturn("Secret");
+        when(request.getDni()).thenReturn("99999999");
+        when(request.getPassword()).thenReturn("Secret123!");
         AddressInfo primary = AddressInfo.builder()
                 .state("BA")
                 .city("Lanus")
@@ -328,7 +387,7 @@ class UserServiceTest {
                 .build();
         when(request.getAddress()).thenReturn(Collections.singletonList(primary));
 
-        when(userRepository.existsByEmail("rollback@example.com")).thenReturn(false);
+        when(userRepository.existsByEmailOrDni("rollback@example.com", "99999999")).thenReturn(false);
         when(ldapUserService.userExistsInLdap("rollback@example.com")).thenReturn(false);
         Role role = Role.builder().id(5L).name("ROLE_USER").build();
         when(roleRepository.findByName("USER")).thenReturn(Optional.of(role));
@@ -338,7 +397,7 @@ class UserServiceTest {
             return u;
         });
         doThrow(new RuntimeException("LDAP error"))
-                .when(ldapUserService).createUserInLdap(any(User.class), eq("Secret"));
+                .when(ldapUserService).createUserInLdap(any(User.class), eq("Secret123!"));
 
         RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.createUser(request, null));
         assertTrue(ex.getMessage().contains("LDAP"));
@@ -347,7 +406,7 @@ class UserServiceTest {
         User persisted = userCaptor.getValue();
         assertEquals("rollback@example.com", persisted.getEmail());
 
-        verify(ldapUserService).createUserInLdap(any(User.class), eq("Secret"));
+        verify(ldapUserService).createUserInLdap(any(User.class), eq("Secret123!"));
         verify(userRepository).delete(persisted);
     }
 
@@ -372,6 +431,39 @@ class UserServiceTest {
         assertEquals("ROLE_ADMIN", response.getUser().getRole());
         verify(spyService).createUser(eq(request), isNull());
         verify(corePublisherService).sendUserCreatedToCore(response);
+    }
+
+    @Test
+    void registerUserFromEvent_sendsResponseAndActivatesUser() {
+        RegisterRequest request = RegisterRequest.builder()
+                .email("event@example.com")
+                .role("ADMIN")
+                .build();
+        CoreMessage event = new CoreMessage();
+        CoreMessage.Destination destination = new CoreMessage.Destination();
+        destination.setTopic("usuario");
+        event.setDestination(destination);
+
+        Role role = Role.builder().name("ROLE_ADMIN").build();
+        User saved = User.builder()
+                .userId(50L)
+                .email("event@example.com")
+                .role(role)
+                .active(false)
+                .build();
+
+        UserService spyService = org.mockito.Mockito.spy(userService);
+        doReturn(saved).when(spyService).createUser(request, destination);
+        when(userRepository.findById(50L)).thenReturn(Optional.of(saved));
+        when(userRepository.save(saved)).thenReturn(saved);
+
+        spyService.registerUserFromEvent(request, event);
+
+        verify(corePublisherService).sendUserCreatedToCore(argThat(resp ->
+                UserService.SUCCESS_REGISTER.equals(resp.getMessage())
+                        && "event@example.com".equals(resp.getUser().getEmail())));
+        assertTrue(saved.getActive());
+        verify(userRepository).save(saved);
     }
 
     @Test
@@ -408,6 +500,30 @@ class UserServiceTest {
 
         verify(userRepository).findByEmail("auth@example.com");
         verifyNoInteractions(jwtUtil);
+    }
+
+    @Test
+    void authenticateUser_returnsInactiveMessageWhenUserNotActive() {
+        LoginRequest request = mock(LoginRequest.class);
+        when(request.getEmail()).thenReturn("auth@example.com");
+        when(request.getPassword()).thenReturn("good");
+
+        when(ldapUserService.authenticateUser("auth@example.com", "good")).thenReturn(true);
+
+        Role role = Role.builder().name("ROLE_USER").build();
+        User user = new User();
+        user.setUserId(25L);
+        user.setEmail("auth@example.com");
+        user.setRole(role);
+        user.setActive(false);
+        user.setAddress(Collections.emptyList());
+
+        when(userRepository.findByEmail("auth@example.com")).thenReturn(Optional.of(user));
+
+        LoginResponse response = userService.authenticateUser(request);
+
+        assertNull(response.getToken());
+        assertEquals(UserService.USER_NOT_ACTIVE_LOGIN, response.getMessage());
     }
 
     @Test
@@ -448,63 +564,95 @@ class UserServiceTest {
 
     @Test
     void resetPassword_updatesTimestampWhenSuccessful() {
-        Long userId = 44L;
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setEmail("reset@example.com");
+        request.setOldPassword("OldPass123!");
+        request.setNewPassword("NewPass123!");
+
         User user = new User();
-        user.setUserId(userId);
         user.setEmail("reset@example.com");
         user.setUpdatedAt(LocalDateTime.now().minusDays(2));
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(ldapUserService.resetUserPassword(user, "NewPass123")).thenReturn(true);
+        when(userRepository.findByEmail("reset@example.com")).thenReturn(Optional.of(user));
+        when(ldapUserService.authenticateUser("reset@example.com", "OldPass123!")).thenReturn(true);
+        when(ldapUserService.resetUserPassword(user, "NewPass123!")).thenReturn(true);
 
-        String result = userService.resetPassword(userId, "NewPass123");
+        String result = userService.resetPassword(request);
 
         assertEquals(UserService.SUCCESS_PWD_RESET, result);
         assertTrue(user.getUpdatedAt().isAfter(LocalDateTime.now().minusMinutes(1)));
-        verify(ldapUserService).resetUserPassword(user, "NewPass123");
+        verify(ldapUserService).resetUserPassword(user, "NewPass123!");
         verify(userRepository).save(user);
     }
 
     @Test
     void resetPassword_returnsErrorWhenLdapFails() {
-        Long userId = 55L;
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setEmail("reset@example.com");
+        request.setOldPassword("OldPass123!");
+        request.setNewPassword("NewPass123!");
+
         User user = new User();
-        user.setUserId(userId);
         user.setEmail("reset@example.com");
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(ldapUserService.resetUserPassword(user, "NewPass123")).thenReturn(false);
+        when(userRepository.findByEmail("reset@example.com")).thenReturn(Optional.of(user));
+        when(ldapUserService.authenticateUser("reset@example.com", "OldPass123!")).thenReturn(true);
+        when(ldapUserService.resetUserPassword(user, "NewPass123!")).thenReturn(false);
 
-        String result = userService.resetPassword(userId, "NewPass123");
+        String result = userService.resetPassword(request);
 
         assertEquals(UserService.ERROR_PWD_RESET, result);
-        verify(ldapUserService).resetUserPassword(user, "NewPass123");
+        verify(ldapUserService).resetUserPassword(user, "NewPass123!");
         verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
     void resetPassword_whenLdapThrows_propagatesException() {
-        Long userId = 60L;
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setEmail("reset@example.com");
+        request.setOldPassword("OldPass123!");
+        request.setNewPassword("NewPass123!");
+
         User user = new User();
-        user.setUserId(userId);
         user.setEmail("reset@example.com");
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("reset@example.com")).thenReturn(Optional.of(user));
+        when(ldapUserService.authenticateUser("reset@example.com", "OldPass123!")).thenReturn(true);
         doThrow(new RuntimeException("ldap boom"))
-                .when(ldapUserService).resetUserPassword(user, "NewPass123");
+                .when(ldapUserService).resetUserPassword(user, "NewPass123!");
 
-        assertThrows(RuntimeException.class, () -> userService.resetPassword(userId, "NewPass123"));
-        verify(ldapUserService).resetUserPassword(user, "NewPass123");
+        assertThrows(RuntimeException.class, () -> userService.resetPassword(request));
+        verify(ldapUserService).resetUserPassword(user, "NewPass123!");
         verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
     void resetPassword_whenUserMissing_throws() {
-        Long userId = 99L;
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setEmail("missing@example.com");
+        request.setOldPassword("OldPass123!");
+        request.setNewPassword("NewPass123!");
 
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.resetPassword(userId, "pass"));
-        assertTrue(ex.getMessage().contains("no existe"));
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.resetPassword(request));
+        assertTrue(ex.getMessage().contains("missing@example.com"));
+    }
+
+    @Test
+    void resetPassword_whenNewPasswordInvalid_throwsBadRequest() {
+        ResetPasswordRequest request = new ResetPasswordRequest();
+        request.setEmail("user@example.com");
+        request.setOldPassword("OldPass123!");
+        request.setNewPassword("short");
+
+        User user = new User();
+        user.setEmail("user@example.com");
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> userService.resetPassword(request));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(ldapUserService, never()).authenticateUser(any(), any());
     }
 
     @Test
@@ -523,8 +671,12 @@ class UserServiceTest {
         existing.setRole(role);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.findByEmail("old@example.com")).thenReturn(Optional.of(existing));
         when(userRepository.save(existing)).thenReturn(existing);
         when(ldapUserService.updateUserInLdap("old@example.com", existing)).thenReturn(true);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("old@example.com", null, List.of())
+        );
 
         UpdateUserRequest request = new UpdateUserRequest();
         request.setEmail("new@example.com");
@@ -555,8 +707,12 @@ class UserServiceTest {
         existing.setRole(role);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existing));
         when(userRepository.save(existing)).thenReturn(existing);
         when(ldapUserService.updateUserInLdap("user@example.com", existing)).thenReturn(true);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("user@example.com", null, List.of())
+        );
 
         UpdateUserRequest request = new UpdateUserRequest();
         request.setFirstName("Updated");
@@ -566,6 +722,60 @@ class UserServiceTest {
         assertEquals("ROLE_CLIENTE", existing.getRole().getName());
         assertEquals("11112222", existing.getDni());
         verify(userRepository).save(existing);
+    }
+
+    @Test
+    void updateUserPartially_throwsWhenEmailAlreadyExists() {
+        Long userId = 30L;
+        Role role = new Role();
+        role.setName("ROLE_USER");
+
+        User existing = new User();
+        existing.setUserId(userId);
+        existing.setEmail("current@example.com");
+        existing.setRole(role);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.findByEmail("current@example.com")).thenReturn(Optional.of(existing));
+        when(userRepository.existsByEmail("new@example.com")).thenReturn(true);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("current@example.com", null, List.of())
+        );
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setEmail("new@example.com");
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.updateUserPartially(userId, request));
+        assertTrue(ex.getMessage().contains("ya se encuentra registrado"));
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void updateUserPartially_withPassword_throwsWhenLdapUpdateFails() {
+        Long userId = 40L;
+        Role role = new Role();
+        role.setName("ROLE_USER");
+
+        User existing = new User();
+        existing.setUserId(userId);
+        existing.setEmail("user@example.com");
+        existing.setRole(role);
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(existing));
+        when(userRepository.save(existing)).thenReturn(existing);
+        when(ldapUserService.updateUserInLdapWithNewPwd("user@example.com", existing, "NewPass123!"))
+                .thenReturn(false);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("user@example.com", null, List.of())
+        );
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setPassword("NewPass123!");
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.updateUserPartially(userId, request));
+        assertTrue(ex.getMessage().toLowerCase().contains("ldap"));
+        verify(ldapUserService).updateUserInLdapWithNewPwd("user@example.com", existing, "NewPass123!");
     }
 
     @Test
@@ -581,8 +791,12 @@ class UserServiceTest {
         existing.setRole(role);
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.findByEmail("old@example.com")).thenReturn(Optional.of(existing));
         when(userRepository.save(existing)).thenReturn(existing);
         when(ldapUserService.updateUserInLdap("old@example.com", existing)).thenReturn(false);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("old@example.com", null, List.of())
+        );
 
         UpdateUserRequest request = new UpdateUserRequest();
         request.setFirstName("New");
@@ -592,5 +806,33 @@ class UserServiceTest {
 
         verify(userRepository).save(existing);
         verify(ldapUserService).updateUserInLdap("old@example.com", existing);
+    }
+
+    @Test
+    void authenticateUser_throwsWhenTokenGenerationFails() {
+        LoginRequest request = mock(LoginRequest.class);
+        when(request.getEmail()).thenReturn("auth@example.com");
+        when(request.getPassword()).thenReturn("good");
+
+        when(ldapUserService.authenticateUser("auth@example.com", "good")).thenReturn(true);
+
+        Role role = Role.builder().name("ROLE_USER").build();
+        User user = new User();
+        user.setUserId(25L);
+        user.setEmail("auth@example.com");
+        user.setFirstName("Jane");
+        user.setLastName("Doe");
+        user.setPhoneNumber("123");
+        user.setRole(role);
+        user.setActive(true);
+        user.setDni("12345678");
+        user.setAddress(Collections.emptyList());
+
+        when(userRepository.findByEmail("auth@example.com")).thenReturn(Optional.of(user));
+        when(permissionService.getPermissionsForUser(25L)).thenReturn(Collections.emptyMap());
+        when(jwtUtil.generateToken(any(User.class), anyMap()))
+                .thenThrow(new RuntimeException("jwt error"));
+
+        assertThrows(RuntimeException.class, () -> userService.authenticateUser(request));
     }
 }

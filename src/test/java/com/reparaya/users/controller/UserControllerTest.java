@@ -8,6 +8,7 @@ import com.reparaya.users.dto.UpdateUserRequest;
 import com.reparaya.users.dto.UserChangeActiveRequest;
 import com.reparaya.users.dto.UserDto;
 import com.reparaya.users.dto.UserInfoLoginResponse;
+import com.reparaya.users.service.PasswordResetService;
 import com.reparaya.users.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,7 @@ class UserControllerTest {
 
     @MockBean UserService userService;
     @MockBean JwtAuthenticationFilter jwtAuthenticationFilter;
+    @MockBean PasswordResetService passwordResetService;
 
     @Test
     void getAllUsers_returnsOkAndDelegatesToService() throws Exception {
@@ -218,15 +220,23 @@ class UserControllerTest {
 
     @Test
     void resetPassword_returnsOk() throws Exception {
-        when(userService.resetPassword(5L, "NewPass123")).thenReturn("OK");
+        when(userService.resetPassword(any())).thenReturn("OK");
 
-        mvc.perform(patch("/api/users/{userId}/reset-password", 5L)
+        String payload = """
+                {
+                  "email": "user@example.com",
+                  "oldPassword": "OldPass123",
+                  "newPassword": "NewPass123"
+                }
+                """;
+
+        mvc.perform(patch("/api/users/change-password")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"newPassword\":\"NewPass123\"}"))
+                        .content(payload))
                 .andExpect(status().isOk())
                 .andExpect(content().string("OK"));
 
-        verify(userService).resetPassword(5L, "NewPass123");
+        verify(userService).resetPassword(any());
     }
 
     @Test
@@ -269,5 +279,25 @@ class UserControllerTest {
         ).andExpect(status().isOk());
 
         verify(userService).changeUserIsActive(eq(userId), any(UserChangeActiveRequest.class));
+    }
+
+    @Test
+    void forgotPassword_callsServiceAndReturnsOk() throws Exception {
+        mvc.perform(post("/api/users/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"user@mail.com\"}"))
+                .andExpect(status().isOk());
+
+        verify(passwordResetService).createAndSendResetToken("user@mail.com");
+    }
+
+    @Test
+    void resetForgotPassword_callsServiceAndReturnsOk() throws Exception {
+        mvc.perform(post("/api/users/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"abc123\",\"newPassword\":\"NewPass123!\"}"))
+                .andExpect(status().isOk());
+
+        verify(passwordResetService).resetPassword("abc123", "NewPass123!");
     }
 }

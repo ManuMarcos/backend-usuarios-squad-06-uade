@@ -35,7 +35,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                    .requestMatchers(
+                .requestMatchers(
                         "/api/users/register",
                         "/api/users/login",
                         "/api/users/*/reset-password",
@@ -49,7 +49,7 @@ public class SecurityConfig {
                         "/api/users/forgot-password",
                         "/api/users/reset-password"
                 ).permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
                 // Endpoints de permisos - ver permisos (todos los roles)
                 .requestMatchers("/api/permissions/user/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
                 .requestMatchers("/api/permissions/all", "/api/permissions/module/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
