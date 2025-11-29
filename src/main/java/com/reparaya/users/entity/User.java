@@ -34,7 +34,7 @@ public class User {
     @Column(name = "last_name", nullable = false, length = 40)
     private String lastName;
 
-    @Column(name = "phone_number", length = 40)
+    @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
