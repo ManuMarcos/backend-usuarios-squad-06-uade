@@ -68,6 +68,7 @@ public class EventMapper {
             String number = payload.get("numero") != null ? String.valueOf(payload.get("numero")) : null;
             String floor = payload.get("piso") != null ? String.valueOf(payload.get("piso")) : null;
             String apartment = payload.get("departamento") != null ? String.valueOf(payload.get("departamento")) : null;
+            String profileImageUrl = payload.get("foto") != null ? String.valueOf(payload.get("foto")) : null;
 
             List<Object> zones = new ArrayList<>();
             if (payload.get("zonas") != null) {
@@ -99,6 +100,7 @@ public class EventMapper {
                     .firstName(firstName)
                     .lastName(lastName)
                     .phoneNumber(phoneNumber)
+                    .profileImageUrl(profileImageUrl)
                     .zones(zones)
                     .skills(skills)
                     .build();

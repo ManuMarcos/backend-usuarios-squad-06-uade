@@ -28,13 +28,13 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "first_name", nullable = false)
+    @Column(name = "first_name", nullable = false, length = 40)
     private String firstName;
 
-    @Column(name = "last_name", nullable = false)
+    @Column(name = "last_name", nullable = false, length = 40)
     private String lastName;
 
-    @Column(name = "phone_number")
+    @Column(name = "phone_number", length = 20)
     private String phoneNumber;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -62,5 +62,8 @@ public class User {
 
     @Column(name = "register_origin")
     private String registerOrigin;
+
+    @Column(name = "profile_image_url", length = 255)
+    private String profileImageUrl;
 
 }

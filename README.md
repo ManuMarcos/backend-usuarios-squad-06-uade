@@ -7,7 +7,16 @@ El backend esta implementado con Java 21 y Spring Boot y expone un servicio REST
 
 ---
 
-## Ejecutar los tests
+## Entornos
+
+| Entorno             | URL                                                                |
+| ------------------- | ------------------------------------------------------------------ |
+| ProducciA3n    | [https://4j0gfpnn0g.execute-api.us-east-2.amazonaws.com/prod/](https://4j0gfpnn0g.execute-api.us-east-2.amazonaws.com/prod/) |
+| Desarrollo    | [https://4j0gfpnn0g.execute-api.us-east-2.amazonaws.com/dev/](https://4j0gfpnn0g.execute-api.us-east-2.amazonaws.com/dev/)  |
+
+# dY"- DocumentaciA3n de la API de Usuarios �?" ArreglaYa
+
+
 
 > Las suites ahora ejercitan Postgres y LDAP reales. Levanta los contenedores antes de lanzar Maven:
 > ```

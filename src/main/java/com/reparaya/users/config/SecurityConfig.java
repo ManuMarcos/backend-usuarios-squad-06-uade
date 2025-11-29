@@ -6,6 +6,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,10 +31,11 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
+                .cors(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
-                .requestMatchers(
+                    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .requestMatchers(
                         "/api/users/register",
                         "/api/users/login",
                         "/api/users/*/reset-password",
@@ -41,9 +43,13 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/swagger-ui.html",
                         "/webhook/**",
-                        "/api/token/validate"
+                        "/api/token/**",
+                        "/api/files/presign-upload",
+                        "/api/token/validate",
+                        "/api/users/forgot-password",
+                        "/api/users/reset-password"
                 ).permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/users/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
                 // Endpoints de permisos - ver permisos (todos los roles)
                 .requestMatchers("/api/permissions/user/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
                 .requestMatchers("/api/permissions/all", "/api/permissions/module/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
@@ -53,6 +59,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/users").hasRole("ADMIN")
                 .requestMatchers("/api/users/*/permissions/**").hasAnyRole("ADMIN", "PRESTADOR", "CLIENTE")
                 .requestMatchers("/api/users/*/assign-role").hasRole("ADMIN")
+                .requestMatchers("/api/users/*/profile-image/presign").authenticated()
+                .requestMatchers("/api/users/change-password").authenticated()
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex
