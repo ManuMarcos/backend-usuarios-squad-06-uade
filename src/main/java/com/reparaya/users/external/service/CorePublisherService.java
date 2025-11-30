@@ -24,7 +24,7 @@ public class CorePublisherService {
     @Value("${api.core.key}")
     private String apiKey;
 
-    private final String CORE_EVENT_PUBLISH_URL = "https://api.arreglacore.click/publish";
+    private String coreEventPublishUrl = "https://api.arreglacore.click/publish";
 
 
     public void sendUserCreatedToCore(RegisterResponse registerResponse) {
@@ -60,7 +60,7 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user created event to core with messageId: {} and email: {}", messageId, registerResponse.getUser().getEmail());
 
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        String response = rt.postForObject(coreEventPublishUrl, entity, String.class);
         log.info("Received user created response from core: {} for messageId: {}", response, messageId);
 
     }
@@ -90,7 +90,7 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user deactivated event to core with messageId: {} and userId: {} ", messageId, userId);
 
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        String response = rt.postForObject(coreEventPublishUrl, entity, String.class);
         log.info("Received user deactivated response from core: {} for messageId: {}", response, messageId);
     }
 
@@ -125,7 +125,7 @@ public class CorePublisherService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user updated event to core with messageId: {} and email: {}", messageId, updateResponse.getUser().getEmail());
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        String response = rt.postForObject(coreEventPublishUrl, entity, String.class);
         log.info("Received user updated response from core: {} for messageId: {}", response, messageId);
     }
 
@@ -154,7 +154,7 @@ public class CorePublisherService {
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         log.info("Sending user rejected event to core with messageId: {} and reason: {} ", messageId, errorMessage);
 
-        String response = rt.postForObject(CORE_EVENT_PUBLISH_URL, entity, String.class);
+        String response = rt.postForObject(coreEventPublishUrl, entity, String.class);
         log.info("Received user rejected response from core: {} for messageId: {}", response, messageId);
     }
 }

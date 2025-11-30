@@ -115,4 +115,35 @@ class IncomingEventProcessorTest {
         assertThat(processed).isFalse();
         verify(incomingEventRepository, never()).save(any());
     }
+
+    @Test
+    void processEventByStrategyProcessesDuplicatedPendingEvent() {
+        IncomingEvent stored = IncomingEvent.builder()
+                .messageId("msg-123")
+                .processed(false)
+                .build();
+        when(incomingEventRepository.findByMessageId("msg-123")).thenReturn(Optional.of(stored));
+        when(eventFactory.getStrategy(message)).thenReturn(strategy);
+        when(strategy.handle(message)).thenReturn(true);
+
+        boolean processed = processor.processEventByStrategy(message);
+
+        assertThat(processed).isTrue();
+        verify(incomingEventRepository).save(stored);
+        assertThat(stored.isProcessed()).isTrue();
+    }
+
+    @Test
+    void processEventByStrategyReturnsFalseWhenPayloadSerializationFails() {
+        when(incomingEventRepository.findByMessageId("msg-123")).thenReturn(Optional.empty());
+        // self-referential payload to break serialization
+        var payload = new java.util.HashMap<String, Object>();
+        payload.put("self", payload);
+        message.setPayload(payload);
+
+        boolean processed = processor.processEventByStrategy(message);
+
+        assertThat(processed).isFalse();
+        verify(eventFactory, never()).getStrategy(any());
+    }
 }

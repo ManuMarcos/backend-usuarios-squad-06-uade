@@ -72,4 +72,26 @@ class TokenServiceTest {
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().getMessage()).contains("Error validando token");
     }
+
+    @Test
+    void validateTokenReturnsUnauthorizedWhenExpired() {
+        String token = "expired";
+        Claims claims = mock(Claims.class);
+        when(jwtUtil.extractAllClaims(token)).thenReturn(claims);
+        when(jwtUtil.extractExpiration(token)).thenReturn(Date.from(Instant.now().minusSeconds(5)));
+
+        ResponseEntity<TokenValidationResponse> response = tokenService.validateToken(token);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(401);
+    }
+
+    @Test
+    void validateTokenReturnsUnauthorizedWhenSignatureFails() {
+        String token = "bad-signature";
+        when(jwtUtil.extractAllClaims(token)).thenThrow(new RuntimeException("bad jwt"));
+
+        ResponseEntity<TokenValidationResponse> response = tokenService.validateToken(token);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(401);
+    }
 }

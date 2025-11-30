@@ -75,6 +75,13 @@ class PermissionServiceTest {
     }
 
     @Test
+    void getPermissionsForUser_throwsWhenUserMissing() {
+        when(userRepository.findById(9L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> permissionService.getPermissionsForUser(9L));
+    }
+
+    @Test
     void getPermissionsForUserInModule_filtersByModule() {
         Permission perm = Permission.builder()
                 .moduleCode("catalogue")
@@ -87,6 +94,14 @@ class PermissionServiceTest {
         List<String> permissions = permissionService.getPermissionsForUserInModule(1L, "catalogue");
 
         assertThat(permissions).containsExactly("DELETE");
+    }
+
+    @Test
+    void getPermissionsForUserInModule_throwsWhenUserMissing() {
+        when(userRepository.findById(3L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class,
+                () -> permissionService.getPermissionsForUserInModule(3L, "catalogue"));
     }
 
     @Test
@@ -114,6 +129,53 @@ class PermissionServiceTest {
         boolean result = permissionService.hasPermission(1L, "catalogue", "READ");
 
         assertThat(result).isTrue();
+    }
+
+    @Test
+    void hasPermission_returnsFalseWhenRepositoryThrows() {
+        when(userRepository.findById(1L)).thenThrow(new RuntimeException("db down"));
+
+        boolean result = permissionService.hasPermission(1L, "catalogue", "READ");
+
+        assertFalse(result);
+    }
+
+    @Test
+    void getAllPermissionsDto_mapsFields() {
+        Permission permission = Permission.builder()
+                .id(5L)
+                .moduleCode("catalogue")
+                .permissionName("MANAGE")
+                .description("desc")
+                .active(true)
+                .build();
+
+        when(permissionRepository.findAll()).thenReturn(List.of(permission));
+
+        List<PermissionDto> dtos = permissionService.getAllPermissionsDto();
+
+        assertThat(dtos).hasSize(1);
+        assertThat(dtos.get(0).getId()).isEqualTo(5L);
+        assertThat(dtos.get(0).getPermissionName()).isEqualTo("MANAGE");
+        assertThat(dtos.get(0).isActive()).isTrue();
+    }
+
+    @Test
+    void getPermissionsByModuleDto_returnsMappedList() {
+        Permission permission = Permission.builder()
+                .id(6L)
+                .moduleCode("catalogue")
+                .permissionName("READ")
+                .description("desc")
+                .active(true)
+                .build();
+
+        when(permissionRepository.findPermissionsByModuleCode("catalogue")).thenReturn(List.of(permission));
+
+        List<PermissionDto> dtos = permissionService.getPermissionsByModuleDto("catalogue");
+
+        assertThat(dtos).hasSize(1);
+        assertThat(dtos.get(0).getModuleCode()).isEqualTo("catalogue");
     }
 
     @Test
@@ -156,6 +218,28 @@ class PermissionServiceTest {
     }
 
     @Test
+    void addPermissionToUser_throwsWhenPermissionMissing() {
+        AddPermissionRequest request = AddPermissionRequest.builder()
+                .moduleCode("catalogue")
+                .permissionName("MANAGE")
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(permissionRepository.findAll()).thenReturn(List.of());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> permissionService.addPermissionToUser(1L, request));
+    }
+
+    @Test
+    void addPermissionToUser_throwsWhenUserNotFound() {
+        when(userRepository.findById(2L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> permissionService.addPermissionToUser(2L, AddPermissionRequest.builder().build()));
+    }
+
+    @Test
     void removePermissionFromUser_removesAndPersists() {
         Permission permission = Permission.builder()
                 .moduleCode("catalogue")
@@ -174,6 +258,27 @@ class PermissionServiceTest {
 
         assertThat(role.getPermissions()).doesNotContain(permission);
         verify(userRepository).save(user);
+    }
+
+    @Test
+    void removePermissionFromUser_throwsWhenPermissionMissing() {
+        RemovePermissionRequest request = RemovePermissionRequest.builder()
+                .moduleCode("catalogue")
+                .permissionName("MANAGE")
+                .build();
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(permissionRepository.findAll()).thenReturn(List.of());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> permissionService.removePermissionFromUser(1L, request));
+    }
+
+    @Test
+    void syncUserPermissionsWithRole_throwsWhenUserMissing() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> permissionService.syncUserPermissionsWithRole(1L));
     }
 
     @Test

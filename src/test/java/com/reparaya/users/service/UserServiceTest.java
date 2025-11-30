@@ -8,6 +8,7 @@ import com.reparaya.users.dto.RegisterRequest;
 import com.reparaya.users.dto.RegisterResponse;
 import com.reparaya.users.dto.ResetPasswordRequest;
 import com.reparaya.users.dto.UpdateUserRequest;
+import com.reparaya.users.dto.UpdateUserResponse;
 import com.reparaya.users.dto.UserChangeActiveRequest;
 import com.reparaya.users.dto.UserDto;
 import com.reparaya.users.external.service.CorePublisherService;
@@ -64,6 +65,7 @@ class UserServiceTest {
     @Mock private PermissionService permissionService;
     @Mock private RoleRepository roleRepository;
     @Mock private CorePublisherService corePublisherService;
+    @Mock private S3StorageService s3StorageService;
 
     @InjectMocks private UserService userService;
 
@@ -722,6 +724,100 @@ class UserServiceTest {
         assertEquals("ROLE_CLIENTE", existing.getRole().getName());
         assertEquals("11112222", existing.getDni());
         verify(userRepository).save(existing);
+    }
+
+    @Test
+    void updateUserPartiallyFromEvent_updatesImageAndPasswordAndPublishes() {
+        Long userId = 50L;
+        Role role = Role.builder().name("ROLE_USER").build();
+        User existing = User.builder()
+                .userId(userId)
+                .email("old@example.com")
+                .firstName("Old")
+                .lastName("Name")
+                .role(role)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.save(existing)).thenReturn(existing);
+        when(ldapUserService.updateUserInLdapWithNewPwd("old@example.com", existing, "StrongPass1!"))
+                .thenReturn(true);
+        when(s3StorageService.downloadAndUploadImageFromUrl("http://image", userId))
+                .thenReturn("https://s3/image.png");
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setUserId(userId);
+        request.setProfileImageUrl("http://image");
+        request.setPassword("StrongPass1!");
+
+        UpdateUserResponse response = userService.updateUserPartiallyFromEvent(request);
+
+        assertEquals("https://s3/image.png", existing.getProfileImageUrl());
+        assertEquals("old@example.com", response.getUser().getEmail());
+    }
+
+    @Test
+    void updateUserPartiallyFromEvent_throwsWhenImageUploadFails() {
+        Long userId = 51L;
+        Role role = Role.builder().name("ROLE_USER").build();
+        User existing = User.builder()
+                .userId(userId)
+                .email("old@example.com")
+                .firstName("Old")
+                .lastName("Name")
+                .role(role)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(s3StorageService.downloadAndUploadImageFromUrl("http://bad", userId))
+                .thenThrow(new RuntimeException("fail"));
+        when(userRepository.save(existing)).thenReturn(existing);
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setUserId(userId);
+        request.setProfileImageUrl("http://bad");
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.updateUserPartiallyFromEvent(request));
+        assertTrue(ex.getMessage().contains("imagen"));
+    }
+
+    @Test
+    void updateUserPartiallyFromEvent_throwsWhenPasswordInvalid() {
+        Long userId = 52L;
+        Role role = Role.builder().name("ROLE_USER").build();
+        User existing = User.builder()
+                .userId(userId)
+                .email("old@example.com")
+                .firstName("Old")
+                .lastName("Name")
+                .role(role)
+                .build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.save(existing)).thenReturn(existing);
+
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setUserId(userId);
+        request.setPassword("weak");
+
+        assertThrows(ResponseStatusException.class, () -> userService.updateUserPartiallyFromEvent(request));
+        verifyNoInteractions(ldapUserService);
+    }
+
+    @Test
+    void changeUserIsActive_sendsCoreEventWhenDeactivating() {
+        Long userId = 70L;
+        User existing = new User();
+        existing.setUserId(userId);
+        existing.setActive(true);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+
+        UserChangeActiveRequest req = new UserChangeActiveRequest();
+        req.setActive(false);
+
+        userService.changeUserIsActive(userId, req);
+
+        verify(corePublisherService).sendUserDeactivatedToCore(userId);
     }
 
     @Test

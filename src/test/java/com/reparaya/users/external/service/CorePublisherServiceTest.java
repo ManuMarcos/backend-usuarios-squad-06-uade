@@ -1,129 +1,113 @@
 package com.reparaya.users.external.service;
 
-import com.reparaya.users.dto.AddressInfo;
 import com.reparaya.users.dto.RegisterResponse;
+import com.reparaya.users.dto.UpdateUserResponse;
 import com.reparaya.users.dto.UserDto;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.MockedConstruction;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mockConstruction;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class CorePublisherServiceTest {
 
-    private CorePublisherService newService() {
-        CorePublisherService service = new CorePublisherService();
-        ReflectionTestUtils.setField(service, "apiKey", "test-key");
-        return service;
+    private HttpServer server;
+    private List<String> receivedBodies;
+    private List<String> receivedKeys;
+    private AtomicInteger calls;
+
+    @BeforeEach
+    void startServer() throws IOException {
+        receivedBodies = new ArrayList<>();
+        receivedKeys = new ArrayList<>();
+        calls = new AtomicInteger();
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/publish", new TestHandler());
+        server.start();
+    }
+
+    @AfterEach
+    void stopServer() {
+        server.stop(0);
     }
 
     @Test
-    void sendUserCreatedToCore_PublishesExpectedPayload() {
+    void sendUserCreatedToCore_postsEventWithApiKey() {
+        CorePublisherService service = new CorePublisherService();
+        String url = "http://localhost:" + server.getAddress().getPort() + "/publish";
+        ReflectionTestUtils.setField(service, "coreEventPublishUrl", url);
+        ReflectionTestUtils.setField(service, "apiKey", "test-key");
+
         RegisterResponse response = RegisterResponse.builder()
-                .message("Usuario creado")
+                .message("ok")
                 .user(UserDto.builder()
                         .email("user@example.com")
-                        .firstName("John")
-                        .lastName("Doe")
-                        .address(List.of(AddressInfo.builder()
-                                .city("CABA")
-                                .state("BA")
-                                .street("Main")
-                                .number("10")
-                                .build()))
+                        .role("ROLE_USER")
                         .build())
-                .zones(List.of("zone1"))
-                .skills(List.of("skill1"))
                 .build();
 
-        try (MockedConstruction<RestTemplate> mocked = mockConstruction(RestTemplate.class, (mock, context) ->
-                when(mock.postForObject(anyString(), any(), eq(String.class))).thenReturn("ok"))) {
+        service.sendUserCreatedToCore(response);
 
-            CorePublisherService service = newService();
-            service.sendUserCreatedToCore(response);
-
-            RestTemplate restTemplate = mocked.constructed().get(0);
-            ArgumentCaptor<String> urlCaptor = ArgumentCaptor.forClass(String.class);
-            @SuppressWarnings("unchecked")
-            ArgumentCaptor<HttpEntity<Map<String, Object>>> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
-
-            verify(restTemplate).postForObject(urlCaptor.capture(), entityCaptor.capture(), eq(String.class));
-            assertThat(urlCaptor.getValue()).contains("https://api.arreglacore.click/publish");
-
-            HttpEntity<Map<String, Object>> entity = entityCaptor.getValue();
-            HttpHeaders headers = entity.getHeaders();
-            assertThat(headers.getFirst("x-api-key")).isEqualTo("test-key");
-            assertThat(headers.getContentType()).isNotNull();
-
-            Map<String, Object> body = entity.getBody();
-            assertThat(body).isNotNull();
-            assertThat(body.get("destination")).isInstanceOf(Map.class);
-            Map<?, ?> destination = (Map<?, ?>) body.get("destination");
-            assertThat(destination.get("eventName")).isEqualTo("user_created");
-
-            Map<?, ?> payload = (Map<?, ?>) body.get("payload");
-            assertThat(payload.get("message")).isEqualTo("Usuario creado");
-            assertThat(payload.get("zones")).isEqualTo(List.of("zone1"));
-            assertThat(payload.get("skills")).isEqualTo(List.of("skill1"));
-            assertThat(payload.get("email")).isEqualTo("user@example.com");
-        }
+        assertThat(calls.get()).isEqualTo(1);
+        assertThat(receivedKeys).contains("test-key");
+        assertThat(String.join(" ", receivedBodies)).contains("user_created").contains("user@example.com");
     }
 
     @Test
-    void sendUserDeactivatedToCore_PublishesDeactivationEvent() {
-        try (MockedConstruction<RestTemplate> mocked = mockConstruction(RestTemplate.class, (mock, context) ->
-                when(mock.postForObject(anyString(), any(), eq(String.class))).thenReturn("ok"))) {
+    void sendUserUpdatedAndRejectedToCore_postsDistinctEvents() {
+        CorePublisherService service = new CorePublisherService();
+        String url = "http://localhost:" + server.getAddress().getPort() + "/publish";
+        ReflectionTestUtils.setField(service, "coreEventPublishUrl", url);
+        ReflectionTestUtils.setField(service, "apiKey", "another-key");
 
-            CorePublisherService service = newService();
-            service.sendUserDeactivatedToCore(99L);
+        UpdateUserResponse update = UpdateUserResponse.builder()
+                .user(UserDto.builder().email("upd@example.com").build())
+                .build();
 
-            RestTemplate restTemplate = mocked.constructed().get(0);
-            @SuppressWarnings("unchecked")
-            ArgumentCaptor<HttpEntity<Map<String, Object>>> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+        service.sendUserUpdatedToCore(update);
+        service.sendUserRejectedToCore("rej@example.com", "bad data");
 
-            verify(restTemplate).postForObject(anyString(), entityCaptor.capture(), eq(String.class));
-            Map<String, Object> body = entityCaptor.getValue().getBody();
-            assertThat(body).isNotNull();
-            Map<?, ?> destination = (Map<?, ?>) body.get("destination");
-            assertThat(destination.get("eventName")).isEqualTo("user_deactivated");
-            Map<?, ?> payload = (Map<?, ?>) body.get("payload");
-            assertThat(payload.get("userId")).isEqualTo(99L);
-        }
+        assertThat(calls.get()).isEqualTo(2);
+        assertThat(receivedKeys).allMatch("another-key"::equals);
+        String body = String.join(" ", receivedBodies);
+        assertThat(body).contains("user_updated").contains("user_rejected").contains("rej@example.com");
     }
 
     @Test
-    void sendUserRejectedToCore_PublishesRejectedEvent() {
-        try (MockedConstruction<RestTemplate> mocked = mockConstruction(RestTemplate.class, (mock, context) ->
-                when(mock.postForObject(anyString(), any(), eq(String.class))).thenReturn("ok"))) {
+    void sendUserDeactivatedToCore_postsDeactivateEvent() {
+        CorePublisherService service = new CorePublisherService();
+        String url = "http://localhost:" + server.getAddress().getPort() + "/publish";
+        ReflectionTestUtils.setField(service, "coreEventPublishUrl", url);
+        ReflectionTestUtils.setField(service, "apiKey", "key");
 
-            CorePublisherService service = newService();
-            service.sendUserRejectedToCore("user@example.com", "error");
+        service.sendUserDeactivatedToCore(55L);
 
-            RestTemplate restTemplate = mocked.constructed().get(0);
-            @SuppressWarnings("unchecked")
-            ArgumentCaptor<HttpEntity<Map<String, Object>>> entityCaptor = ArgumentCaptor.forClass(HttpEntity.class);
+        assertThat(calls.get()).isEqualTo(1);
+        assertThat(receivedBodies.getFirst()).contains("user_deactivated").contains("55");
+    }
 
-            verify(restTemplate).postForObject(anyString(), entityCaptor.capture(), eq(String.class));
-            Map<String, Object> body = entityCaptor.getValue().getBody();
-            assertThat(body).isNotNull();
-            Map<?, ?> destination = (Map<?, ?>) body.get("destination");
-            assertThat(destination.get("eventName")).isEqualTo("user_rejected");
-            Map<?, ?> payload = (Map<?, ?>) body.get("payload");
-            assertThat(payload.get("email")).isEqualTo("user@example.com");
-            assertThat(String.valueOf(payload.get("message"))).contains("error");
+    private class TestHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            calls.incrementAndGet();
+            receivedKeys.add(exchange.getRequestHeaders().getFirst("x-api-key"));
+            try (InputStream is = exchange.getRequestBody()) {
+                receivedBodies.add(new String(is.readAllBytes(), StandardCharsets.UTF_8));
+            }
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
         }
     }
 }

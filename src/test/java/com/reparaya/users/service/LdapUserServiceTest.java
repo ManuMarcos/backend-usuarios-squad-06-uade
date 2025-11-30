@@ -172,6 +172,26 @@ class LdapUserServiceTest {
     }
 
     @Test
+    void updateUserInLdapWithNewPwd_returnsFalseWhenNewUserExists() {
+        // old exists via userExistsInLdap -> lookup returns object, new also exists
+        LdapUserService spyService = spy(ldapUserService);
+        doReturn(true).when(spyService).userExistsInLdap("old@example.com");
+        doReturn(true).when(spyService).userExistsInLdap("new@example.com");
+
+        User updated = User.builder()
+                .email("new@example.com")
+                .firstName("Jane")
+                .lastName("Doe")
+                .role(user.getRole())
+                .build();
+
+        boolean result = spyService.updateUserInLdapWithNewPwd("old@example.com", updated, "pwd");
+
+        assertThat(result).isFalse();
+        verify(ldapTemplate, never()).rename(any(Name.class), any(Name.class));
+    }
+
+    @Test
     void updateUserInLdapReturnsFalseWhenOldUserMissing() {
         when(ldapTemplate.lookup(any(Name.class))).thenThrow(new RuntimeException("missing"));
 
@@ -179,5 +199,29 @@ class LdapUserServiceTest {
 
         assertThat(result).isFalse();
         verify(ldapTemplate, never()).rename(any(Name.class), any(Name.class));
+    }
+
+    @Test
+    void updateUserInLdap_returnsFalseWhenRenameFails() {
+        when(ldapTemplate.lookup(argThat((Name name) ->
+                name != null && name.toString().contains("uid=old@example.com"))))
+                .thenReturn(new Object());
+        when(ldapTemplate.lookup(argThat((Name name) ->
+                name != null && name.toString().contains("uid=new@example.com"))))
+                .thenThrow(new RuntimeException("missing"));
+        doThrow(new RuntimeException("rename fail"))
+                .when(ldapTemplate).rename(any(Name.class), any(Name.class));
+
+        User updatedUser = User.builder()
+                .email("new@example.com")
+                .firstName("Jane")
+                .lastName("Smith")
+                .role(user.getRole())
+                .build();
+
+        boolean result = ldapUserService.updateUserInLdap("old@example.com", updatedUser);
+
+        assertThat(result).isFalse();
+        verify(ldapTemplate, never()).modifyAttributes(any(Name.class), any(ModificationItem[].class));
     }
 }
