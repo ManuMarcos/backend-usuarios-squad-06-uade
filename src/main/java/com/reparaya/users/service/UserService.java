@@ -480,7 +480,7 @@ public class UserService {
 
         if (request.getEmail() != null) {
             if (!oldEmail.equals(request.getEmail().toLowerCase().trim()) && userRepository.existsByEmail(request.getEmail().toLowerCase().trim())) {
-                throw new RuntimeException("El email ya se encuentra registrado.");
+                throw new IllegalStateException("El email ya se encuentra registrado.");
             }
             user.setEmail(request.getEmail().toLowerCase().trim());
         }
